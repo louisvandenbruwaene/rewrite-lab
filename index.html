@@ -208,19 +208,19 @@ let save={stars:{}};try{save=Object.assign(save,JSON.parse(localStorage.getItem(
 function persist(){try{localStorage.setItem('rewrite-save',JSON.stringify(save));}catch(e){}}
 
 /* force layout */
-function relax(gg,P,iters,cx,cy,rest=72,pinned=null){
+function relax(gg,P,iters,cx,cy,rest=72,pinned=null,board=true){
   const N=nbrs(gg);
   for(let it=0;it<iters;it++){
     for(const a of gg.V){const p=P.get(a);let fx=(cx-p.x)*.004,fy=(cy-p.y)*.004;
       for(const b of gg.V){if(a===b)continue;const q=P.get(b),dx=p.x-q.x,dy=p.y-q.y,d2=dx*dx+dy*dy+.01,d=Math.sqrt(d2);const f=2600/d2;fx+=dx/d*f;fy+=dy/d*f;}
       for(const b of N.get(a)){const q=P.get(b),dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy)+.01,f=.05*(d-rest);fx+=dx/d*f;fy+=dy/d*f;}
       p.vx=(p.vx+fx)*.8;p.vy=(p.vy+fy)*.8;}
-    for(const a of gg.V){if(a===pinned)continue;const p=P.get(a);p.x=Math.max(24,Math.min(W-24,p.x+p.vx));p.y=Math.max(24,Math.min(H-24,p.y+p.vy));
-      if(p.x>PANEL.x-14&&p.y<PANEL.y+PANEL.h+14){p.x-=1.5;p.y+=1.5;}}
+    for(const a of gg.V){if(a===pinned)continue;const p=P.get(a);p.x+=p.vx;p.y+=p.vy;
+      if(board){p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(24,Math.min(H-24,p.y));if(p.x>PANEL.x-14&&p.y<PANEL.y+PANEL.h+14){p.x-=1.5;p.y+=1.5;}}}
   }
 }
 function initPos(gg,cx,cy,r){const P=new Map();gg.V.forEach((v,i)=>{const a=-Math.PI/2+2*Math.PI*i/gg.V.length;P.set(v,{x:cx+r*Math.cos(a),y:cy+r*Math.sin(a),vx:0,vy:0});});return P;}
-function targetLayout(t){const P=initPos(t,0,0,60);relax(t,P,600,0,0,60);let xs=[...P.values()].map(p=>p.x),ys=[...P.values()].map(p=>p.y);
+function targetLayout(t){const P=initPos(t,0,0,60);relax(t,P,600,0,0,60,null,false);let xs=[...P.values()].map(p=>p.x),ys=[...P.values()].map(p=>p.y);
   const mx=(Math.min(...xs)+Math.max(...xs))/2,my=(Math.min(...ys)+Math.max(...ys))/2,s=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),1);
   const out=new Map();for(const [v,p] of P)out.set(v,[(p.x-mx)/s,(p.y-my)/s]);return out;}
 
