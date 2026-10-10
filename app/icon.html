@@ -1,0 +1,17 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Rewrite Lab icon</title>
+<style>html,body{margin:0;background:transparent}svg{display:block;width:1024px;height:1024px}</style></head>
+<body><div id="out"></div>
+<script>
+/* The Rewrite Lab app icon: a macOS-style rounded square (824px tile, 100px margin) drawn as SVG. */
+const tile=(bg,inner)=>`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><defs><clipPath id="c"><rect x="100" y="100" width="824" height="824" rx="185"/></clipPath>
+<linearGradient id="sh" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient></defs>
+<g clip-path="url(#c)">${bg}${inner}<rect x="100" y="100" width="824" height="824" fill="url(#sh)"/></g></svg>`;
+const fill=(c1,c2)=>`<defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs><rect x="0" y="0" width="1024" height="1024" fill="url(#bg)"/>`;
+const ICON=tile(fill('#f7f9fb','#dfe7ee'),`${Array.from({length:17},(_,i)=>`<path d="M${100+i*50} 100 V924 M100 ${100+i*50} H924" stroke="#e3e9ef" stroke-width="3"/>`).join('')}
+    <g stroke="#1d2a3a" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none"><path d="M250 640 L360 400 L470 640"/><path d="M560 640 L670 400 L780 640 Z" fill="none"/></g>
+    <path d="M250 640 L470 640" stroke="#e2603a" stroke-width="22" stroke-dasharray="26 22" stroke-linecap="round" opacity=".55"/>
+    <path d="M500 520 L540 520" stroke="#8a97a6" stroke-width="16" stroke-linecap="round"/><path d="M540 495 L568 520 L540 545 Z" fill="#8a97a6"/>
+    ${[[250,640,'#3d8bd9'],[360,400,'#23a88f'],[470,640,'#3d8bd9'],[560,640,'#23a88f'],[670,400,'#23a88f'],[780,640,'#23a88f']].map(([x,y,c])=>`<circle cx="${x}" cy="${y}" r="50" fill="${c}" stroke="#fff" stroke-width="12"/>`).join('')}`);
+document.getElementById('out').innerHTML=ICON;
+</script></body></html>
