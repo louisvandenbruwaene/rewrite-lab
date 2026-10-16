@@ -26,11 +26,15 @@ body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1
 .title{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;min-width:0}
 h1{font-family:var(--f-display);font-weight:700;font-size:30px;margin:0;letter-spacing:-.01em}
 #lvname{font-family:var(--f-display);font-weight:500;font-size:18px;color:var(--muted)}
-.levels{display:flex;gap:5px;flex-wrap:wrap}
+.levels{display:flex;gap:6px;align-items:center}
+#lvPick{min-width:150px;font-variant-numeric:tabular-nums}#lvPick small{color:var(--accent);margin-left:8px;font-size:13px}
+.lvgrid{position:absolute;inset:0;background:rgba(232,238,243,.97);padding:14px;display:grid;grid-template-columns:repeat(10,1fr);grid-auto-rows:1fr;gap:6px;overflow:auto}
+.lvgrid .lv{width:auto}
 button{font-family:var(--f-display);font-size:16px;font-weight:600;border:0;border-radius:10px;padding:9px 14px;background:var(--panel);color:var(--ink);cursor:pointer;box-shadow:0 3px 0 #b9c5d1;transition:transform .06s}
 button:hover{filter:brightness(.97)}
 button:active{transform:translateY(2px);box-shadow:0 1px 0 #b9c5d1}
 button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button:disabled{opacity:.35;cursor:default;transform:none}
 button.primary{background:var(--accent);color:#fff;box-shadow:0 3px 0 #a8401f}
 .lv{width:42px;padding:5px 0 4px;display:grid;justify-items:center;line-height:1.1}
 .lv b{font-size:15px}.lv small{font-size:10px;letter-spacing:1px;color:var(--accent)}
@@ -72,6 +76,7 @@ canvas#board{display:block;width:100%;aspect-ratio:8/5;max-width:100%;touch-acti
   </div>
   <div class="stage">
     <canvas id="board" width="800" height="500" aria-label="Graph board. Pick a rule, then click nodes or links where it applies."></canvas>
+    <div class="lvgrid" id="lvgrid" hidden></div>
     <div class="overlay" id="ov" hidden>
       <div class="res">
         <h2 id="ovTitle"></h2>
@@ -100,7 +105,9 @@ const key=(a,b)=>a<b?a+'-'+b:b+'-'+a;
 function G(n,edges){return {next:n,V:[...Array(n).keys()],E:new Set(edges.map(([a,b])=>key(a,b)))};}
 const clone=g=>({next:g.next,V:g.V.slice(),E:new Set(g.E)});
 const has=(g,a,b)=>g.E.has(key(a,b));
-function nbrs(g){const m=new Map(g.V.map(v=>[v,new Set()]));for(const k of g.E){const [a,b]=k.split('-').map(Number);m.get(a).add(b);m.get(b).add(a);}return m;}
+/* graphs are never changed once built, so each one's neighbour map is computed once */
+const NB=new WeakMap();
+function nbrs(g){let m=NB.get(g);if(m)return m;m=new Map(g.V.map(v=>[v,new Set()]));for(const k of g.E){const [a,b]=k.split('-').map(Number);m.get(a).add(b);m.get(b).add(a);}NB.set(g,m);return m;}
 const edgesOf=g=>[...g.E].map(k=>k.split('-').map(Number));
 const path=n=>G(n,[...Array(n-1).keys()].map(i=>[i,i+1]));
 const cycle=n=>G(n,[...Array(n).keys()].map(i=>[i,(i+1)%n]));
@@ -181,13 +188,69 @@ function solve(start,target,rules,maxDepth=9,maxNodes=12){
     frontier=nf;if(!frontier.length)return -1;}
   return -1;}
 const K4=G(4,[[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]]),HOUSE=G(5,[[0,1],[1,2],[2,3],[3,0],[0,4],[1,4]]);
-const complete=n=>{const e=[];for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)e.push([i,j]);return G(n,e);};
-const bip=(a,b)=>{const e=[];for(let i=0;i<a;i++)for(let j=0;j<b;j++)e.push([i,a+j]);return G(a+b,e);};
-const wheel=n=>G(n+1,[...Array(n).keys()].flatMap(i=>[[i,(i+1)%n],[i,n]]));
-const OCTA=G(6,[[0,1],[0,2],[0,3],[0,4],[1,2],[2,3],[3,4],[4,1],[5,1],[5,2],[5,3],[5,4]]);
-/* utilities drawn as two rows of three, houses 0-2 on top */
-const UTIL_POS=[[-.4,-.3],[0,-.3],[.4,-.3],[-.4,.3],[0,.3],[.4,.3]];
-const PETERSEN=G(10,[[0,1],[1,2],[2,3],[3,4],[4,0],[0,5],[1,6],[2,7],[3,8],[4,9],[5,7],[7,9],[9,6],[6,8],[8,5]]);
+/* named shapes for levels; pos is the classic drawing used on the target card and the starting board */
+const withPos=(g,pos)=>Object.assign(g,{pos});
+const SH={
+  Antiprism4:withPos(G(8,[[0,1],[1,2],[2,3],[0,3],[4,5],[5,6],[6,7],[4,7],[0,4],[0,5],[1,5],[1,6],[2,6],[2,7],[3,7],[3,4]]),[[0,-0.5],[0.5,0],[0,0.5],[-0.5,0],[0.17,-0.17],[0.17,0.17],[-0.17,0.17],[-0.17,-0.17]]),
+  Bowtie:G(5,[[0,1],[1,2],[0,2],[0,3],[3,4],[0,4]]),
+  Bull:G(5,[[0,1],[1,2],[0,2],[1,3],[2,4]]),
+  Butterfly2:G(7,[[0,1],[1,2],[0,2],[0,3],[3,4],[0,4],[0,5],[5,6],[0,6]]),
+  C4:G(4,[[0,1],[1,2],[2,3],[0,3]]),
+  C5:G(5,[[0,1],[1,2],[2,3],[3,4],[0,4]]),
+  C6:G(6,[[0,1],[1,2],[2,3],[3,4],[4,5],[0,5]]),
+  C7:withPos(G(7,[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[0,6]]),[[0,-0.5],[0.391,-0.312],[0.487,0.111],[0.217,0.45],[-0.217,0.45],[-0.487,0.111],[-0.391,-0.312]]),
+  C8:withPos(G(8,[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[0,7]]),[[0,-0.5],[0.354,-0.354],[0.5,0],[0.354,0.354],[0,0.5],[-0.354,0.354],[-0.5,0],[-0.354,-0.354]]),
+  C9:withPos(G(9,[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[0,8]]),[[0,-0.5],[0.321,-0.383],[0.492,-0.087],[0.433,0.25],[0.171,0.47],[-0.171,0.47],[-0.433,0.25],[-0.492,-0.087],[-0.321,-0.383]]),
+  Caterpillar:G(8,[[0,1],[1,2],[2,3],[0,4],[1,5],[2,6],[3,7]]),
+  Cube:withPos(G(8,[[0,1],[4,5],[0,4],[1,2],[5,6],[1,5],[2,3],[6,7],[2,6],[0,3],[4,7],[3,7]]),[[0.354,-0.354],[0.354,0.354],[-0.354,0.354],[-0.354,-0.354],[0.156,-0.156],[0.156,0.156],[-0.156,0.156],[-0.156,-0.156]]),
+  Domino:withPos(G(6,[[0,3],[0,1],[3,4],[1,4],[1,2],[4,5],[2,5]]),[[-0.3,-0.15],[0,-0.15],[0.3,-0.15],[-0.3,0.15],[0,0.15],[0.3,0.15]]),
+  DoubleStar:G(8,[[0,1],[0,2],[0,3],[0,4],[1,5],[1,6],[1,7]]),
+  Envelope:G(5,[[0,1],[1,2],[2,3],[0,3],[0,4],[1,4],[0,2]]),
+  Fan4:G(5,[[0,1],[1,2],[2,3],[0,4],[1,4],[2,4],[3,4]]),
+  Fan5:G(6,[[0,1],[1,2],[2,3],[3,4],[0,5],[1,5],[2,5],[3,5],[4,5]]),
+  Gem:G(5,[[0,1],[1,2],[2,3],[0,4],[1,4],[2,4],[3,4]]),
+  Grid24:withPos(G(8,[[0,1],[0,4],[1,2],[1,5],[2,3],[2,6],[3,7],[4,5],[5,6],[6,7]]),[[-0.45,-0.15],[-0.15,-0.15],[0.15,-0.15],[0.45,-0.15],[-0.45,0.15],[-0.15,0.15],[0.15,0.15],[0.45,0.15]]),
+  Grid3:withPos(G(9,[[0,1],[0,3],[1,2],[1,4],[2,5],[3,4],[3,6],[4,5],[4,7],[5,8],[6,7],[7,8]]),[[-0.3,-0.3],[0,-0.3],[0.3,-0.3],[-0.3,0],[0,0],[0.3,0],[-0.3,0.3],[0,0.3],[0.3,0.3]]),
+  House:G(5,[[0,1],[1,2],[2,3],[0,3],[0,4],[1,4]]),
+  K23:withPos(G(5,[[0,2],[0,3],[0,4],[1,2],[1,3],[1,4]]),[[-0.15,-0.35],[0.15,-0.35],[-0.3,0.35],[0,0.35],[0.3,0.35]]),
+  K24:withPos(G(6,[[0,2],[0,3],[0,4],[0,5],[1,2],[1,3],[1,4],[1,5]]),[[-0.15,-0.35],[0.15,-0.35],[-0.45,0.35],[-0.15,0.35],[0.15,0.35],[0.45,0.35]]),
+  K25:withPos(G(7,[[0,2],[0,3],[0,4],[0,5],[0,6],[1,2],[1,3],[1,4],[1,5],[1,6]]),[[-0.15,-0.35],[0.15,-0.35],[-0.6,0.35],[-0.3,0.35],[0,0.35],[0.3,0.35],[0.6,0.35]]),
+  K33:withPos(G(6,[[0,3],[0,4],[0,5],[1,3],[1,4],[1,5],[2,3],[2,4],[2,5]]),[[-0.3,-0.35],[0,-0.35],[0.3,-0.35],[-0.3,0.35],[0,0.35],[0.3,0.35]]),
+  K34:withPos(G(7,[[0,3],[0,4],[0,5],[0,6],[1,3],[1,4],[1,5],[1,6],[2,3],[2,4],[2,5],[2,6]]),[[-0.3,-0.35],[0,-0.35],[0.3,-0.35],[-0.45,0.35],[-0.15,0.35],[0.15,0.35],[0.45,0.35]]),
+  K4:G(4,[[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]]),
+  K44:withPos(G(8,[[0,4],[0,5],[0,6],[0,7],[1,4],[1,5],[1,6],[1,7],[2,4],[2,5],[2,6],[2,7],[3,4],[3,5],[3,6],[3,7]]),[[-0.45,-0.35],[-0.15,-0.35],[0.15,-0.35],[0.45,-0.35],[-0.45,0.35],[-0.15,0.35],[0.15,0.35],[0.45,0.35]]),
+  K5:G(5,[[0,1],[0,2],[0,3],[0,4],[1,2],[1,3],[1,4],[2,3],[2,4],[3,4]]),
+  K6:G(6,[[0,1],[0,2],[0,3],[0,4],[0,5],[1,2],[1,3],[1,4],[1,5],[2,3],[2,4],[2,5],[3,4],[3,5],[4,5]]),
+  Ladder4:withPos(G(8,[[0,4],[0,1],[4,5],[1,5],[1,2],[5,6],[2,6],[2,3],[6,7],[3,7]]),[[-0.45,-0.15],[-0.15,-0.15],[0.15,-0.15],[0.45,-0.15],[-0.45,0.15],[-0.15,0.15],[0.15,0.15],[0.45,0.15]]),
+  Lollipop:G(7,[[0,1],[0,2],[0,3],[1,2],[1,3],[2,3],[3,4],[4,5],[5,6]]),
+  Mobius3:withPos(G(6,[[0,1],[1,2],[2,3],[3,4],[4,5],[0,5],[0,3],[1,4],[2,5]]),[[0,-0.5],[0.433,-0.25],[0.433,0.25],[0,0.5],[-0.433,0.25],[-0.433,-0.25]]),
+  Octa:G(6,[[0,1],[0,2],[0,3],[0,4],[1,2],[2,3],[3,4],[1,4],[1,5],[2,5],[3,5],[4,5]]),
+  P4:G(4,[[0,1],[1,2],[2,3]]),
+  P5:G(5,[[0,1],[1,2],[2,3],[3,4]]),
+  P6:G(6,[[0,1],[1,2],[2,3],[3,4],[4,5]]),
+  P7:G(7,[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]]),
+  P8:G(8,[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7]]),
+  P9:G(9,[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8]]),
+  Petersen:withPos(G(10,[[0,1],[1,2],[2,3],[3,4],[0,4],[0,5],[1,6],[2,7],[3,8],[4,9],[5,7],[7,9],[6,9],[6,8],[5,8]]),[[0,-0.47],[0.476,-0.125],[0.294,0.435],[-0.294,0.435],[-0.476,-0.125],[0,-0.21],[0.228,-0.044],[0.141,0.224],[-0.141,0.224],[-0.228,-0.044]]),
+  Prism:withPos(G(6,[[0,1],[3,4],[0,3],[1,2],[4,5],[1,4],[0,2],[3,5],[2,5]]),[[0,-0.5],[0.433,0.25],[-0.433,0.25],[0,-0.2],[0.173,0.1],[-0.173,0.1]]),
+  S3:G(4,[[0,1],[0,2],[0,3]]),
+  S4:G(5,[[0,1],[0,2],[0,3],[0,4]]),
+  S5:G(6,[[0,1],[0,2],[0,3],[0,4],[0,5]]),
+  Spider:G(7,[[0,1],[1,2],[0,3],[3,4],[0,5],[5,6]]),
+  Sun3:withPos(G(6,[[0,1],[0,3],[1,2],[1,4],[0,2],[2,5]]),[[0,-0.25],[0.217,0.125],[-0.217,0.125],[0,-0.5],[0.433,0.25],[-0.433,0.25]]),
+  Sun4:withPos(G(8,[[0,1],[0,4],[1,2],[1,5],[2,3],[2,6],[0,3],[3,7]]),[[0,-0.25],[0.25,0],[0,0.25],[-0.25,0],[0,-0.5],[0.5,0],[0,0.5],[-0.5,0]]),
+  Tadpole:G(5,[[0,1],[1,2],[0,2],[2,3],[3,4]]),
+  Theta:G(6,[[0,1],[1,2],[2,3],[3,4],[4,5],[0,5],[0,3]]),
+  ThreeTri:G(9,[[0,1],[1,2],[0,2],[3,4],[4,5],[3,5],[6,7],[7,8],[6,8]]),
+  Tree7:G(7,[[0,1],[0,2],[1,3],[1,4],[2,5],[2,6]]),
+  Tree8:G(8,[[0,1],[0,2],[1,3],[1,4],[2,5],[2,6],[3,7]]),
+  TriChain:G(7,[[0,1],[1,2],[0,2],[2,3],[3,4],[2,4],[4,5],[5,6],[4,6]]),
+  Triforce:G(6,[[0,1],[1,2],[0,2],[0,3],[1,3],[1,4],[2,4],[2,5],[0,5]]),
+  TwoTri:G(6,[[0,1],[1,2],[0,2],[3,4],[4,5],[3,5]]),
+  W4:G(5,[[0,1],[1,2],[2,3],[0,3],[0,4],[1,4],[2,4],[3,4]]),
+  W5:withPos(G(6,[[0,1],[1,2],[2,3],[3,4],[0,4],[0,5],[1,5],[2,5],[3,5],[4,5]]),[[0,-0.5],[0.476,-0.155],[0.294,0.405],[-0.294,0.405],[-0.476,-0.155],[0,0]]),
+  W6:withPos(G(7,[[0,1],[1,2],[2,3],[3,4],[4,5],[0,5],[0,6],[1,6],[2,6],[3,6],[4,6],[5,6]]),[[0,-0.5],[0.433,-0.25],[0.433,0.25],[0,0.5],[-0.433,0.25],[-0.433,-0.25],[0,0]]),
+};
 function solvePath(start,target,rules,maxDepth=9,maxNodes=10){
   if(iso(start,target))return [];
   let frontier=[{g:start,path:[]}],seen=new Set([hash(start)]);
@@ -211,27 +274,99 @@ const LEVELS=[
   {name:'Wheel',rules:['sprout','close'],start:cycle(5),target:G(6,[[0,1],[1,2],[2,3],[3,4],[4,0],[5,0],[5,1],[5,2],[5,3],[5,4]])},
   {name:'Prism',rules:['close','swap','cut'],start:cycle(6),target:G(6,[[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])},
   {name:'Tree to ring',rules:['close','prune','cut'],start:G(6,[[0,1],[0,2],[0,3],[1,4],[2,5]]),target:cycle(5)},
-  {name:'Three utilities',rules:['swap','close','cut'],start:cycle(6),target:bip(3,3),tpos:UTIL_POS},
-  /* second lab: new rules, solver-stored optimums (node tools/check.cjs verifies them) */
-  {name:'Hub',rules:['smooth','close'],start:cycle(5),target:wheel(4),best:3,tip:'Smooth takes out a two-link node and joins its neighbours.'},
-  {name:'Twins',rules:['twin','cut'],start:K4,target:OCTA,best:3,tip:'Twin copies a node with all its links, but not a link to itself.'},
-  {name:'Flip side',rules:['flip'],start:path(4),target:cycle(4),best:3,tip:'Flip toggles every link among one node\'s neighbours.'},
-  {name:'Starburst',rules:['star','close'],start:path(4),target:G(5,[[0,1],[1,2],[2,0],[0,3],[3,4],[4,0]]),best:4,tip:'Star: click the three corners of a triangle.'},
-  {name:'Envelope',rules:['fold','sprout'],start:cycle(5),target:G(5,[[0,1],[1,2],[2,3],[3,0],[0,4],[1,4],[0,2]]),best:4,tip:'Fold turns a three-link node into a triangle.'},
-  {name:'Octahedron',rules:['flip','sprout'],start:path(4),target:OCTA,best:7},
-  {name:'Utilities again',rules:['flip','sprout'],start:cycle(4),target:bip(3,3),tpos:UTIL_POS,best:8},
-  {name:'No shortcut',rules:['flip','cut','close'],start:path(6),target:cycle(6),best:7,tip:'The ends are too far apart to Close.'},
-  {name:'Sunlet',rules:['flip','twin'],start:cycle(4),target:G(6,[[0,1],[1,2],[2,0],[0,3],[1,4],[2,5]]),best:7},
-  {name:'Unravel',rules:['flip','prune'],start:bip(3,3),target:cycle(4),best:8},
-  {name:'Domino',rules:['twin','cut'],start:K4,target:G(6,[[0,1],[1,2],[3,4],[4,5],[0,3],[1,4],[2,5]]),best:7},
-  {name:'Five-way',rules:['star','close'],start:path(4),target:complete(5),best:8},
-  {name:'Spokes',rules:['star','fold','split'],start:G(4,[[0,1],[0,2],[0,3]]),target:wheel(4),best:9},
-  {name:'Petersen family',rules:['star','fold'],start:complete(6),target:PETERSEN,best:4,tpos:[...Array(10).keys()].map(i=>{const r=i<5?.5:.24,a=-Math.PI/2+2*Math.PI*(i%5)/5;return [r*Math.cos(a),r*Math.sin(a)+.03];}),tip:'Every Star keeps the link count. Pick your triangles well.'},
-  {name:'Grand rewrite',rules:['star','fold','flip'],start:path(4),target:HOUSE,best:9},
+  {name:'Three utilities',rules:['swap','close','cut'],start:cycle(6),target:SH.K33},
+  /* levels 16-100: picked from a solver catalogue along a difficulty ramp; best = fewest moves, verified by node tools/check.cjs */
+  {name:'Hexagon to prism',rules:['close','prune','cut'],start:SH.C6,target:SH.Prism,best:5,cap:7},
+  {name:'Hub',rules:['smooth','close'],start:SH.C5,target:SH.W4,best:3,tip:'Smooth takes out a two-link node and joins its neighbours.'},
+  {name:'Path to square',rules:['smooth','close','cut'],start:SH.P6,target:SH.C4,best:5,cap:7},
+  {name:'Path',rules:['contract','sprout'],start:SH.C5,target:SH.P5,best:6,cap:6},
+  {name:'Hexagon',rules:['swap','smooth','split'],start:SH.ThreeTri,target:SH.C6,best:5,cap:10},
+  {name:'Big star to path',rules:['close','cut'],start:SH.S5,target:SH.P6,best:6,cap:7},
+  {name:'Two triangles',rules:['swap','cut'],start:SH.K33,target:SH.TwoTri,best:6,cap:7},
+  {name:'K4',rules:['smooth','close','cut'],start:SH.S4,target:SH.K4,best:6,cap:6},
+  {name:'Bull',rules:['contract','split','close'],start:SH.K4,target:SH.Bull,best:6,cap:5},
+  {name:'Big star',rules:['contract','sprout'],start:SH.Prism,target:SH.S5,best:6,cap:7},
+  {name:'Twins',rules:['twin','cut'],start:SH.K4,target:SH.Octa,best:3,tip:'Twin copies a node with all its links, but not a link to itself.'},
+  {name:'Fan',rules:['twin','prune','cut'],start:SH.Bowtie,target:SH.Fan4,best:6,cap:6},
+  {name:'K2,5',rules:['twin','contract'],start:SH.K34,target:SH.K25,best:6,cap:8},
+  {name:'Domino',rules:['twin','cut'],start:SH.K4,target:SH.Domino,best:7},
+  {name:'Utilities',rules:['swap','close','cut'],start:SH.TwoTri,target:SH.K33,best:6,cap:7},
+  {name:'K2,4',rules:['sprout','close','cut'],start:SH.P5,target:SH.K24,best:6,cap:6},
+  {name:'Triforce to path',rules:['twin','prune','cut'],start:SH.Triforce,target:SH.P4,best:6,cap:7},
+  {name:'Sunlet to octahedron',rules:['swap','close','prune'],start:SH.Sun3,target:SH.Octa,best:6,cap:7},
+  {name:'Butterfly to wheel',rules:['twin','contract'],start:SH.Butterfly2,target:SH.W4,best:6,cap:8},
+  {name:'Flip side',rules:['flip'],start:SH.P4,target:SH.C4,best:3,tip:'Flip toggles every link among one node\'s neighbours.'},
+  {name:'Sunlet',rules:['flip','twin'],start:SH.C4,target:SH.Sun3,best:7},
+  {name:'Octahedron',rules:['flip','sprout'],start:SH.P4,target:SH.Octa,best:7},
+  {name:'K2,3 to fan',rules:['flip','split','prune'],start:SH.K23,target:SH.Fan5,best:6,cap:6},
+  {name:'Star',rules:['flip','contract'],start:SH.C7,target:SH.S4,best:7,cap:8},
+  {name:'Path to wheel',rules:['flip','twin','smooth','cut'],start:SH.P5,target:SH.W5,best:6,cap:6},
+  {name:'Möbius ladder',rules:['flip','twin','prune'],start:SH.Octa,target:SH.Mobius3,best:7,cap:7},
+  {name:'Ladder',rules:['flip','prune'],start:SH.C8,target:SH.Ladder4,best:6,cap:9},
+  {name:'No shortcut',rules:['flip','cut','close'],start:SH.P6,target:SH.C6,best:7,tip:'The ends are too far apart to Close.'},
+  {name:'Theta',rules:['flip','contract'],start:SH.P7,target:SH.Theta,best:7,cap:8},
+  {name:'Starburst',rules:['star','close'],start:SH.P4,target:SH.Bowtie,best:4,tip:'Star: click the three corners of a triangle.'},
+  {name:'Five-way',rules:['star','close'],start:SH.P4,target:SH.K5,best:8},
+  {name:'Tadpole',rules:['star','smooth'],start:SH.Ladder4,target:SH.Tadpole,best:7,cap:9},
+  {name:'Antiprism',rules:['flip'],start:SH.Grid24,target:SH.Antiprism4,best:8,cap:9},
+  {name:'Big wheel',rules:['flip','split','prune'],start:SH.Domino,target:SH.W6,best:7,cap:7},
+  {name:'Butterfly',rules:['flip','twin','prune'],start:SH.Mobius3,target:SH.Butterfly2,best:7,cap:7},
+  {name:'Long path',rules:['contract','sprout'],start:SH.DoubleStar,target:SH.P7,best:7,cap:9},
+  {name:'Heptagon',rules:['twin','prune','cut'],start:SH.W5,target:SH.C7,best:7,cap:7},
+  {name:'Nonagon to claw',rules:['star','smooth'],start:SH.C9,target:SH.S3,best:7,cap:10},
+  {name:'Utilities again',rules:['flip','sprout'],start:SH.C4,target:SH.K33,best:8},
+  {name:'Envelope',rules:['fold','sprout'],start:SH.C5,target:SH.Envelope,best:4,tip:'Fold turns a three-link node into a triangle.'},
+  {name:'Petersen family',rules:['star','fold'],start:SH.K6,target:SH.Petersen,best:4,tip:'Every Star keeps the link count. Pick your triangles well.'},
+  {name:'Tree',rules:['star','fold','swap'],start:SH.C7,target:SH.Tree8,best:7,cap:8},
+  {name:'Unravel',rules:['flip','prune'],start:SH.K33,target:SH.C4,best:8},
+  {name:'Binary tree',rules:['fold','split','cut'],start:SH.Prism,target:SH.Tree7,best:8,cap:7},
+  {name:'House to sunlet',rules:['star','fold','flip'],start:SH.House,target:SH.Sun3,best:8,cap:6},
+  {name:'Spokes',rules:['star','fold','split'],start:SH.S3,target:SH.W4,best:9},
+  {name:'Lollipop',rules:['star','fold','swap'],start:SH.Mobius3,target:SH.Lollipop,best:8,cap:7},
+  {name:'Double star',rules:['contract','sprout'],start:SH.P8,target:SH.DoubleStar,best:8,cap:9},
+  {name:'Spider',rules:['fold','split','cut'],start:SH.Octa,target:SH.Spider,best:8,cap:7},
+  {name:'Grand rewrite',rules:['star','fold','flip'],start:SH.P4,target:SH.House,best:9},
+  {name:'K4,4',rules:['twin','prune','cut'],start:SH.Tree7,target:SH.K44,best:7,cap:8},
+  {name:'Caterpillar',rules:['star','fold','swap'],start:SH.C7,target:SH.Caterpillar,best:8,cap:8},
+  {name:'Sunflower to long path',rules:['contract','sprout'],start:SH.Sun4,target:SH.P8,best:8,cap:9},
+  {name:'Theta to K2,5',rules:['fold','split','cut'],start:SH.Theta,target:SH.K25,best:8,cap:7},
+  {name:'K3,4',rules:['flip','twin','prune'],start:SH.Octa,target:SH.K34,best:8,cap:7},
+  {name:'Triforce',rules:['flip','contract'],start:SH.TriChain,target:SH.Triforce,best:9,cap:8},
+  {name:'K2,3 to big star',rules:['star','fold','close','cut'],start:SH.K23,target:SH.S5,best:8,cap:6},
+  {name:'K2,3',rules:['star','smooth'],start:SH.Grid3,target:SH.K23,best:8,cap:10},
+  {name:'Star to pentagon',rules:['flip','smooth','split'],start:SH.S4,target:SH.C5,best:9,cap:6},
+  {name:'Tree to K4,4',rules:['twin','prune','cut'],start:SH.Tree8,target:SH.K44,best:8,cap:9},
+  {name:'Triforce to lollipop',rules:['fold','split','cut'],start:SH.Triforce,target:SH.Lollipop,best:8,cap:7},
+  {name:'Hexagon to big wheel',rules:['flip','split','prune'],start:SH.C6,target:SH.W6,best:8,cap:7},
+  {name:'Triangle chain',rules:['flip','twin','prune'],start:SH.K33,target:SH.TriChain,best:9,cap:7},
+  {name:'Double star to long path',rules:['contract','sprout'],start:SH.DoubleStar,target:SH.P9,best:9,cap:9},
+  {name:'Star to envelope',rules:['flip','smooth','split'],start:SH.S4,target:SH.Envelope,best:9,cap:6},
+  {name:'Domino to binary tree',rules:['fold','split','cut'],start:SH.Domino,target:SH.Tree7,best:9,cap:7},
+  {name:'Path to prism',rules:['sprout','close','cut'],start:SH.P5,target:SH.Prism,best:9,cap:6},
+  {name:'Big star to octahedron',rules:['swap','close','cut'],start:SH.S5,target:SH.Octa,best:9,cap:7},
+  {name:'Big wheel to long path',rules:['contract','sprout'],start:SH.W6,target:SH.P8,best:9,cap:8},
+  {name:'House to path',rules:['star','fold','flip'],start:SH.House,target:SH.P6,best:10,cap:6},
+  {name:'Möbius ladder to triangle chain',rules:['flip','twin','prune'],start:SH.Mobius3,target:SH.TriChain,best:9,cap:7},
+  {name:'Long path to K3,4',rules:['twin','prune','cut'],start:SH.P8,target:SH.K34,best:9,cap:9},
+  {name:'Long path to triforce',rules:['flip','contract'],start:SH.P7,target:SH.Triforce,best:10,cap:8},
+  {name:'Octagon to antiprism',rules:['flip','prune'],start:SH.C8,target:SH.Antiprism4,best:8,cap:9},
+  {name:'K4 to bowtie',rules:['star','fold','flip'],start:SH.K4,target:SH.Bowtie,best:10,cap:5},
+  {name:'Sunflower to long path again',rules:['contract','sprout'],start:SH.Sun4,target:SH.P9,best:9,cap:9},
+  {name:'Theta to binary tree',rules:['fold','split','cut'],start:SH.Theta,target:SH.Tree7,best:9,cap:7},
+  {name:'Bowtie to star',rules:['flip','split','prune'],start:SH.Bowtie,target:SH.S4,best:10,cap:6},
+  {name:'Star to fan',rules:['flip','smooth','split'],start:SH.S4,target:SH.Fan5,best:10,cap:6},
+  {name:'Path to Möbius ladder',rules:['sprout','close','cut'],start:SH.P5,target:SH.Mobius3,best:9,cap:6},
+  {name:'Gem',rules:['flip','contract'],start:SH.DoubleStar,target:SH.Gem,best:9,cap:9},
+  {name:'Octahedron to long path',rules:['flip','twin','prune'],start:SH.Octa,target:SH.P7,best:10,cap:7},
+  {name:'K2,3 to path',rules:['star','fold','flip'],start:SH.K23,target:SH.P6,best:10,cap:6},
+  {name:'Cube to heptagon',rules:['flip','contract'],start:SH.Cube,target:SH.C7,best:10,cap:9},
+  {name:'Grand finale',rules:['twin','prune','cut'],start:SH.P8,target:SH.K44,best:10,cap:9},
 ];
-/* the solver never grows a shape past one node more than the bigger of start and target */
-const capOf=L=>Math.max(L.start.V.length,L.target.V.length)+1;
-if(typeof module!=='undefined')module.exports={LEVELS,RULES,moves,iso,hash,solve,solvePath,nbrs,edgesOf,key,G,capOf};
+/* the solver never grows a shape past cap nodes: the level's own, else one more than the bigger of start and target */
+const capOf=L=>L.cap??Math.max(L.start.V.length,L.target.V.length)+1;
+/* levels with a stored cap have few enough reachable shapes to search them all */
+const depthOf=L=>L.cap?30:Math.max(9,(L.best||0)+4);
+if(typeof module!=='undefined')module.exports={LEVELS,RULES,moves,iso,hash,solve,solvePath,nbrs,edgesOf,key,G,capOf,depthOf};
 </script>
 
 <script>
@@ -246,6 +381,8 @@ const PANEL={x:566,y:14,w:220,h:214};const OPTC={};
 const optOf=i=>OPTC[i]??(OPTC[i]=LEVELS[i].best??solve(LEVELS[i].start,LEVELS[i].target,LEVELS[i].rules,9,capOf(LEVELS[i])));
 let li=0,L,gr,pos,hist,movesN,rule=null,picks=[],won=false,morph=null,drag=null,bad=null,tlay=null,hover=null,hint=null,hintMsg='';
 let save={stars:{}};try{save=Object.assign(save,JSON.parse(localStorage.getItem('rewrite-save')||'{}'));}catch(e){}
+/* v2 reordered levels 16 on, so stars saved there belonged to other puzzles */
+if((save.v||1)<2){for(const k of Object.keys(save.stars))if(+k>=15)delete save.stars[k];save.v=2;}
 function persist(){try{localStorage.setItem('rewrite-save',JSON.stringify(save));}catch(e){}}
 
 /* force layout */
@@ -279,9 +416,14 @@ function targetLayout(t,tpos){if(tpos){const out=new Map();t.V.forEach((v,i)=>ou
 
 /* level flow */
 function buildLevels(){
-  const el=$('#levels');el.innerHTML='';
-  LEVELS.forEach((lv,i)=>{const b=document.createElement('button'),s=save.stars[i]||0;b.className='lv'+(i===li?' cur':'');
-    b.innerHTML=`<b>${i+1}</b><small>${'★'.repeat(s)}${'·'.repeat(3-s)}</small>`;b.title=lv.name;b.onclick=()=>load(i);el.appendChild(b);});
+  const stars=i=>save.stars[i]||0,total=LEVELS.reduce((n,_,i)=>n+stars(i),0),el=$('#levels');el.innerHTML='';
+  const mk=(html,f,title)=>{const b=document.createElement('button');b.innerHTML=html;b.onclick=f;if(title)b.title=title;el.appendChild(b);return b;};
+  mk('◀',()=>load(Math.max(0,li-1)),'Previous level').disabled=li===0;
+  const pk=mk(`Level ${li+1} / ${LEVELS.length}<small>★ ${total}/${LEVELS.length*3}</small>`,()=>{$('#lvgrid').hidden=!$('#lvgrid').hidden;},'All levels');pk.id='lvPick';
+  mk('▶',()=>load(Math.min(LEVELS.length-1,li+1)),'Next level').disabled=li===LEVELS.length-1;
+  const gEl=$('#lvgrid');gEl.innerHTML='';
+  LEVELS.forEach((lv,i)=>{const b=document.createElement('button'),s=stars(i);b.className='lv'+(i===li?' cur':'');
+    b.innerHTML=`<b>${i+1}</b><small>${'★'.repeat(s)}${'·'.repeat(3-s)}</small>`;b.title=lv.name;b.onclick=()=>load(i);gEl.appendChild(b);});
 }
 function buildRules(){
   const el=$('#rules');el.innerHTML='';
@@ -294,9 +436,11 @@ function buildRules(){
 function pickRule(rid){rule=rule===rid?null:rid;picks=[];hint=null;hintMsg='';buildRules();}
 function load(i){
   li=i;L=LEVELS[i];gr={next:L.start.next,V:L.start.V.slice(),E:new Set(L.start.E)};
-  pos=initPos(gr,300,280,90);relax(gr,pos,300,300,280);
-  tlay=targetLayout(L.target,L.tpos);hist=[];movesN=0;hint=null;hintMsg='';rule=L.rules.length===1?L.rules[0]:null;picks=[];won=false;morph=null;
-  $('#lvname').textContent=L.name;$('#ov').hidden=true;buildLevels();buildRules();updateHud();
+  pos=initPos(gr,300,280,90);
+  if(L.start.pos)L.start.V.forEach((v,i)=>{const [x,y]=L.start.pos[i];pos.set(v,{x:300+x*300,y:280+y*300,vx:0,vy:0});});
+  relax(gr,pos,L.start.pos?40:300,300,280);
+  tlay=targetLayout(L.target,L.target.pos);hist=[];movesN=0;hint=null;hintMsg='';rule=L.rules.length===1?L.rules[0]:null;picks=[];won=false;morph=null;
+  $('#lvname').textContent=L.name;$('#ov').hidden=true;$('#lvgrid').hidden=true;buildLevels();buildRules();updateHud();
 }
 function updateHud(){$('#sMoves').textContent=movesN;$('#sBest').textContent=optOf(li);}
 function snapshot(){return {gr:{next:gr.next,V:gr.V.slice(),E:new Set(gr.E)},pos:new Map([...pos].map(([k,p])=>[k,{...p}])),movesN};}
@@ -346,9 +490,9 @@ cv.addEventListener('pointermove',e=>{hover=pt(e);if(!drag||drag.v===null||won)r
 cv.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;if(!d.moved)click(d.x0,d.y0);});
 cv.addEventListener('contextmenu',e=>{e.preventDefault();picks=[];});
 addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.repeat)return;const k=e.key.toLowerCase();
-  if(k==='escape')picks=[];else if(k==='z'||k==='backspace')undo();else if(k==='r')load(li);
+  if(k==='escape'){picks=[];$('#lvgrid').hidden=true;}else if(k==='z'||k==='backspace')undo();else if(k==='r')load(li);
   else if(k==='h')showHint();else if(k>='1'&&k<='9'&&+k<=L.rules.length)pickRule(L.rules[+k-1]);});
-function showHint(){if(won)return;const p=solvePath(gr,L.target,L.rules,9,capOf(L));
+function showHint(){if(won)return;const p=solvePath(gr,L.target,L.rules,depthOf(L),capOf(L));
   if(!p){hintMsg='No way to the target from here. Undo or reset.';buildRules();return;}
   const [r,pk]=p[0];rule=r;picks=[];hint=pk;hintMsg=`Next: ${RULES[r].name} on the glowing ${RULES[r].picks[0]==='edge'?'link':'nodes'}. ${p.length} move${p.length>1?'s':''} to go.`;buildRules();}
 $('#bHint').onclick=showHint;

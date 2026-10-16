@@ -13,7 +13,9 @@ The app opens the game in its own Brave window. The folder path is baked in, so 
 
 ## Levels
 
-30 levels, 12 rules. Levels 16-30 store their fewest-moves count (`best`). After editing a level, check every one against the solver:
+100 levels, 12 rules. Level 15 sits at about 60% of the hardest level's difficulty (fewest moves + graph size + rule count); levels 16-100 climb linearly from there. They were picked from a solver catalogue of every named shape reachable from each start, so each one stores its fewest moves (`best`) and the node cap it was solved under (`cap`), which keeps every Hint under a second.
+
+After editing a level, check them all against the solver (fewest moves and worst-case Hint time):
 
 ```
 node tools/check.cjs          # all levels
