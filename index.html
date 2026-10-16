@@ -130,6 +130,24 @@ const RULES={
       if(p.length===2)return c!==p[0]&&c!==p[1]&&!N.get(p[0]).has(c)&&[...N.get(c)].some(d=>d!==p[0]&&d!==p[1]&&!N.get(p[1]).has(d));
       return N.get(p[2]).has(c)&&c!==p[0]&&c!==p[1]&&!N.get(p[1]).has(c);},
     apply(g,[a,b,c,d]){const h=clone(g);h.E.delete(key(a,b));h.E.delete(key(c,d));h.E.add(key(a,c));h.E.add(key(b,d));return h;}},
+  smooth:{name:'Smooth',hint:'Remove a two-link node, its neighbours join up',picks:['node'],
+    valid(g,p,c){const n=[...nbrs(g).get(c)];return n.length===2&&!has(g,n[0],n[1]);},
+    apply(g,[a]){const h=clone(g),[x,y]=nbrs(g).get(a);h.V=h.V.filter(v=>v!==a);h.E=new Set([...h.E].filter(k=>!k.split('-').map(Number).includes(a)));h.E.add(key(x,y));return h;}},
+  twin:{name:'Twin',hint:'Copy a node with all its links',picks:['node'],
+    valid(g,p,c){return nbrs(g).get(c).size>0;},
+    apply(g,[a]){const h=clone(g),n=h.next++;h.V.push(n);for(const x of nbrs(g).get(a))h.E.add(key(n,x));h.born=n;h.near=[a];return h;}},
+  flip:{name:'Flip',hint:'Toggle every link between a node\'s neighbours',picks:['node'],
+    valid(g,p,c){return nbrs(g).get(c).size>1;},
+    apply(g,[a]){const h=clone(g),n=[...nbrs(g).get(a)];for(let i=0;i<n.length;i++)for(let j=i+1;j<n.length;j++){const k=key(n[i],n[j]);h.E.has(k)?h.E.delete(k):h.E.add(k);}return h;}},
+  star:{name:'Star',hint:'Turn a triangle into a three-pointed star',picks:['node','node','node'],
+    valid(g,p,c){const N=nbrs(g);
+      if(p.length===0)return [...N.get(c)].some(b=>[...N.get(b)].some(x=>N.get(c).has(x)));
+      if(p.length===1)return N.get(p[0]).has(c)&&[...N.get(c)].some(x=>N.get(p[0]).has(x));
+      return c!==p[0]&&N.get(p[0]).has(c)&&N.get(p[1]).has(c);},
+    apply(g,[a,b,c]){const h=clone(g),n=h.next++;h.V.push(n);for(const [x,y] of [[a,b],[b,c],[a,c]])h.E.delete(key(x,y));for(const x of [a,b,c])h.E.add(key(n,x));h.born=n;h.near=[a,b,c];return h;}},
+  fold:{name:'Fold',hint:'A three-link node folds into a triangle',picks:['node'],
+    valid(g,p,c){const n=[...nbrs(g).get(c)];return n.length===3&&!has(g,n[0],n[1])&&!has(g,n[1],n[2])&&!has(g,n[0],n[2]);},
+    apply(g,[a]){const h=clone(g),[x,y,z]=nbrs(g).get(a);h.V=h.V.filter(v=>v!==a);h.E=new Set([...h.E].filter(k=>!k.split('-').map(Number).includes(a)));for(const [p,q] of [[x,y],[y,z],[x,z]])h.E.add(key(p,q));return h;}},
 };
 /* every complete application of a rule, for the solver */
 function moves(g,rid){const R=RULES[rid],out=[];
@@ -163,6 +181,13 @@ function solve(start,target,rules,maxDepth=9,maxNodes=12){
     frontier=nf;if(!frontier.length)return -1;}
   return -1;}
 const K4=G(4,[[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]]),HOUSE=G(5,[[0,1],[1,2],[2,3],[3,0],[0,4],[1,4]]);
+const complete=n=>{const e=[];for(let i=0;i<n;i++)for(let j=i+1;j<n;j++)e.push([i,j]);return G(n,e);};
+const bip=(a,b)=>{const e=[];for(let i=0;i<a;i++)for(let j=0;j<b;j++)e.push([i,a+j]);return G(a+b,e);};
+const wheel=n=>G(n+1,[...Array(n).keys()].flatMap(i=>[[i,(i+1)%n],[i,n]]));
+const OCTA=G(6,[[0,1],[0,2],[0,3],[0,4],[1,2],[2,3],[3,4],[4,1],[5,1],[5,2],[5,3],[5,4]]);
+/* utilities drawn as two rows of three, houses 0-2 on top */
+const UTIL_POS=[[-.4,-.3],[0,-.3],[.4,-.3],[-.4,.3],[0,.3],[.4,.3]];
+const PETERSEN=G(10,[[0,1],[1,2],[2,3],[3,4],[4,0],[0,5],[1,6],[2,7],[3,8],[4,9],[5,7],[7,9],[9,6],[6,8],[8,5]]);
 function solvePath(start,target,rules,maxDepth=9,maxNodes=10){
   if(iso(start,target))return [];
   let frontier=[{g:start,path:[]}],seen=new Set([hash(start)]);
@@ -186,9 +211,27 @@ const LEVELS=[
   {name:'Wheel',rules:['sprout','close'],start:cycle(5),target:G(6,[[0,1],[1,2],[2,3],[3,4],[4,0],[5,0],[5,1],[5,2],[5,3],[5,4]])},
   {name:'Prism',rules:['close','swap','cut'],start:cycle(6),target:G(6,[[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])},
   {name:'Tree to ring',rules:['close','prune','cut'],start:G(6,[[0,1],[0,2],[0,3],[1,4],[2,5]]),target:cycle(5)},
-  {name:'Three utilities',rules:['swap','close','cut'],start:cycle(6),target:G(6,[[0,3],[0,4],[0,5],[1,3],[1,4],[1,5],[2,3],[2,4],[2,5]])},
+  {name:'Three utilities',rules:['swap','close','cut'],start:cycle(6),target:bip(3,3),tpos:UTIL_POS},
+  /* second lab: new rules, solver-stored optimums (node tools/check.cjs verifies them) */
+  {name:'Hub',rules:['smooth','close'],start:cycle(5),target:wheel(4),best:3,tip:'Smooth takes out a two-link node and joins its neighbours.'},
+  {name:'Twins',rules:['twin','cut'],start:K4,target:OCTA,best:3,tip:'Twin copies a node with all its links, but not a link to itself.'},
+  {name:'Flip side',rules:['flip'],start:path(4),target:cycle(4),best:3,tip:'Flip toggles every link among one node\'s neighbours.'},
+  {name:'Starburst',rules:['star','close'],start:path(4),target:G(5,[[0,1],[1,2],[2,0],[0,3],[3,4],[4,0]]),best:4,tip:'Star: click the three corners of a triangle.'},
+  {name:'Envelope',rules:['fold','sprout'],start:cycle(5),target:G(5,[[0,1],[1,2],[2,3],[3,0],[0,4],[1,4],[0,2]]),best:4,tip:'Fold turns a three-link node into a triangle.'},
+  {name:'Octahedron',rules:['flip','sprout'],start:path(4),target:OCTA,best:7},
+  {name:'Utilities again',rules:['flip','sprout'],start:cycle(4),target:bip(3,3),tpos:UTIL_POS,best:8},
+  {name:'No shortcut',rules:['flip','cut','close'],start:path(6),target:cycle(6),best:7,tip:'The ends are too far apart to Close.'},
+  {name:'Sunlet',rules:['flip','twin'],start:cycle(4),target:G(6,[[0,1],[1,2],[2,0],[0,3],[1,4],[2,5]]),best:7},
+  {name:'Unravel',rules:['flip','prune'],start:bip(3,3),target:cycle(4),best:8},
+  {name:'Domino',rules:['twin','cut'],start:K4,target:G(6,[[0,1],[1,2],[3,4],[4,5],[0,3],[1,4],[2,5]]),best:7},
+  {name:'Five-way',rules:['star','close'],start:path(4),target:complete(5),best:8},
+  {name:'Spokes',rules:['star','fold','split'],start:G(4,[[0,1],[0,2],[0,3]]),target:wheel(4),best:9},
+  {name:'Petersen family',rules:['star','fold'],start:complete(6),target:PETERSEN,best:4,tpos:[...Array(10).keys()].map(i=>{const r=i<5?.5:.24,a=-Math.PI/2+2*Math.PI*(i%5)/5;return [r*Math.cos(a),r*Math.sin(a)+.03];}),tip:'Every Star keeps the link count. Pick your triangles well.'},
+  {name:'Grand rewrite',rules:['star','fold','flip'],start:path(4),target:HOUSE,best:9},
 ];
-if(typeof module!=='undefined')module.exports={LEVELS,RULES,moves,iso,hash,solve,solvePath,nbrs,edgesOf,key,G};
+/* the solver never grows a shape past one node more than the bigger of start and target */
+const capOf=L=>Math.max(L.start.V.length,L.target.V.length)+1;
+if(typeof module!=='undefined')module.exports={LEVELS,RULES,moves,iso,hash,solve,solvePath,nbrs,edgesOf,key,G,capOf};
 </script>
 
 <script>
@@ -200,14 +243,14 @@ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DEG=['#9aa5b1','#3d8bd9','#23a88f','#f0a92a','#e2603a','#a957c4','#5257d1'];
 const degCol=d=>DEG[Math.min(d,DEG.length-1)];
 const PANEL={x:566,y:14,w:220,h:214};const OPTC={};
-const optOf=i=>OPTC[i]??(OPTC[i]=solve(LEVELS[i].start,LEVELS[i].target,LEVELS[i].rules,9,10));
+const optOf=i=>OPTC[i]??(OPTC[i]=LEVELS[i].best??solve(LEVELS[i].start,LEVELS[i].target,LEVELS[i].rules,9,capOf(LEVELS[i])));
 let li=0,L,gr,pos,hist,movesN,rule=null,picks=[],won=false,morph=null,drag=null,bad=null,tlay=null,hover=null,hint=null,hintMsg='';
 let save={stars:{}};try{save=Object.assign(save,JSON.parse(localStorage.getItem('rewrite-save')||'{}'));}catch(e){}
 function persist(){try{localStorage.setItem('rewrite-save',JSON.stringify(save));}catch(e){}}
 
 /* force layout */
 function relax(gg,P,iters,cx,cy,rest=72,pinned=null,board=true){
-  const N=nbrs(gg);
+  const N=nbrs(gg);if(board)rest*=Math.max(1,Math.sqrt(gg.E.size/gg.V.length/1.2));
   for(let it=0;it<iters;it++){
     for(const a of gg.V){const p=P.get(a);let fx=(cx-p.x)*.004,fy=(cy-p.y)*.004;
       for(const b of gg.V){if(a===b)continue;const q=P.get(b),dx=p.x-q.x,dy=p.y-q.y,d2=dx*dx+dy*dy+.01,d=Math.sqrt(d2);const f=2600/d2;fx+=dx/d*f;fy+=dy/d*f;}
@@ -218,7 +261,19 @@ function relax(gg,P,iters,cx,cy,rest=72,pinned=null,board=true){
   }
 }
 function initPos(gg,cx,cy,r){const P=new Map();gg.V.forEach((v,i)=>{const a=-Math.PI/2+2*Math.PI*i/gg.V.length;P.set(v,{x:cx+r*Math.cos(a),y:cy+r*Math.sin(a),vx:0,vy:0});});return P;}
-function targetLayout(t){const P=initPos(t,0,0,60);relax(t,P,600,0,0,60,null,false);let xs=[...P.values()].map(p=>p.x),ys=[...P.values()].map(p=>p.y);
+/* links cross each other this many times in layout P */
+function crossings(gg,P){const E=edgesOf(gg);let n=0;
+  for(let i=0;i<E.length;i++)for(let j=i+1;j<E.length;j++){const [a,b]=E[i],[c,d]=E[j];if(a===c||a===d||b===c||b===d)continue;
+    const p=P.get(a),q=P.get(b),r=P.get(c),s=P.get(d),o=(u,v,w)=>Math.sign((v.x-u.x)*(w.y-u.y)-(v.y-u.y)*(w.x-u.x));
+    if(o(p,q,r)!==o(p,q,s)&&o(r,s,p)!==o(r,s,q))n++;}
+  return n;}
+/* a few seeded starting orders, keep the relaxed layout with the fewest crossings; a level's own tpos wins */
+function targetLayout(t,tpos){if(tpos){const out=new Map();t.V.forEach((v,i)=>out.set(v,tpos[i]));return out;}
+  let P=null,best=Infinity,seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+  for(let k=0;k<12&&best>0;k++){const order=t.V.slice();if(k)for(let i=order.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
+    const Q=new Map();order.forEach((v,i)=>{const a=-Math.PI/2+2*Math.PI*i/order.length;Q.set(v,{x:60*Math.cos(a),y:60*Math.sin(a),vx:0,vy:0});});
+    relax(t,Q,600,0,0,60,null,false);const c=crossings(t,Q);if(c<best){best=c;P=Q;}}
+  let xs=[...P.values()].map(p=>p.x),ys=[...P.values()].map(p=>p.y);
   const mx=(Math.min(...xs)+Math.max(...xs))/2,my=(Math.min(...ys)+Math.max(...ys))/2,s=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),1);
   const out=new Map();for(const [v,p] of P)out.set(v,[(p.x-mx)/s,(p.y-my)/s]);return out;}
 
@@ -240,7 +295,7 @@ function pickRule(rid){rule=rule===rid?null:rid;picks=[];hint=null;hintMsg='';bu
 function load(i){
   li=i;L=LEVELS[i];gr={next:L.start.next,V:L.start.V.slice(),E:new Set(L.start.E)};
   pos=initPos(gr,300,280,90);relax(gr,pos,300,300,280);
-  tlay=targetLayout(L.target);hist=[];movesN=0;hint=null;hintMsg='';rule=L.rules.length===1?L.rules[0]:null;picks=[];won=false;morph=null;
+  tlay=targetLayout(L.target,L.tpos);hist=[];movesN=0;hint=null;hintMsg='';rule=L.rules.length===1?L.rules[0]:null;picks=[];won=false;morph=null;
   $('#lvname').textContent=L.name;$('#ov').hidden=true;buildLevels();buildRules();updateHud();
 }
 function updateHud(){$('#sMoves').textContent=movesN;$('#sBest').textContent=optOf(li);}
@@ -293,7 +348,7 @@ cv.addEventListener('contextmenu',e=>{e.preventDefault();picks=[];});
 addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.repeat)return;const k=e.key.toLowerCase();
   if(k==='escape')picks=[];else if(k==='z'||k==='backspace')undo();else if(k==='r')load(li);
   else if(k==='h')showHint();else if(k>='1'&&k<='9'&&+k<=L.rules.length)pickRule(L.rules[+k-1]);});
-function showHint(){if(won)return;const p=solvePath(gr,L.target,L.rules,9,10);
+function showHint(){if(won)return;const p=solvePath(gr,L.target,L.rules,9,capOf(L));
   if(!p){hintMsg='No way to the target from here. Undo or reset.';buildRules();return;}
   const [r,pk]=p[0];rule=r;picks=[];hint=pk;hintMsg=`Next: ${RULES[r].name} on the glowing ${RULES[r].picks[0]==='edge'?'link':'nodes'}. ${p.length} move${p.length>1?'s':''} to go.`;buildRules();}
 $('#bHint').onclick=showHint;
@@ -316,6 +371,11 @@ function icon(c,rid){
     prune:o=>{const a=[o+12,24];if(!o){ln(a,[o+36,14]);dot([o+36,14]);}dot(a);},
     cut:o=>{const a=[o+8,36],b=[o+22,10],cc=[o+36,36];ln(a,b);ln(b,cc);if(!o)ln(a,cc,'#e2603a',3);[a,b,cc].forEach(p=>dot(p));},
     swap:o=>{const a=[o+6,10],b=[o+38,10],cc=[o+6,38],d=[o+38,38];if(!o){ln(a,b);ln(cc,d);}else{ln(a,cc,'#e2603a',3);ln(b,d,'#e2603a',3);}[a,b,cc,d].forEach(p=>dot(p));},
+    smooth:o=>{const a=[o+6,24],b=[o+38,24];if(!o){ln(a,[o+22,24]);ln([o+22,24],b);dot([o+22,24]);}else ln(a,b,'#e2603a',3);dot(a);dot(b);},
+    twin:o=>{const a=[o+8,10],b=[o+8,38],m=[o+22,24],t=[o+38,24];ln(a,m);ln(b,m);if(o){ln(a,t,'#e2603a',3);ln(b,t,'#e2603a',3);dot(t,'#e2603a');}[a,b,m].forEach(p=>dot(p));},
+    flip:o=>{const m=[o+22,38],a=[o+6,12],b=[o+22,8],cc=[o+38,12];[a,b,cc].forEach(p=>ln(m,p));if(!o)ln(a,b);else ln(b,cc,'#e2603a',3);[m,a,b,cc].forEach(p=>dot(p));},
+    star:o=>{const a=[o+8,38],b=[o+22,8],cc=[o+36,38];if(!o){ln(a,b);ln(b,cc);ln(a,cc);}else{const m=[o+22,28];[a,b,cc].forEach(p=>ln(m,p,'#e2603a',3));dot(m,'#e2603a');}[a,b,cc].forEach(p=>dot(p));},
+    fold:o=>{const a=[o+8,38],b=[o+22,8],cc=[o+36,38];if(o){ln(a,b,'#e2603a',3);ln(b,cc,'#e2603a',3);ln(a,cc,'#e2603a',3);}else{const m=[o+22,28];[a,b,cc].forEach(p=>ln(m,p));dot(m);}[a,b,cc].forEach(p=>dot(p));},
   };L2(D[rid]);
 }
 function render(now){
@@ -337,7 +397,7 @@ function render(now){
   if(rule&&!won&&hover&&!(drag&&drag.moved)&&picks.length===RULES[rule].picks.length-1){
     const c=kind==='node'?nodeAt(...hover):edgeAt(...hover);
     if(c!==null&&c!==undefined&&!(kind==='node'&&picks.includes(c))&&ok(c)){const h=RULES[rule].apply(gr,picks.concat([c])),gp=v=>{const p=pos.get(v);return p?[p.x,p.y]:null;};
-      let bp=null;if(h.born!==undefined){const nr=h.near.map(gp);bp=nr.length===1?[nr[0][0]+40,nr[0][1]-30]:[(nr[0][0]+nr[1][0])/2,(nr[0][1]+nr[1][1])/2];}
+      let bp=null;if(h.born!==undefined){const nr=h.near.map(gp);bp=nr.length===1?[nr[0][0]+40,nr[0][1]-30]:[nr.reduce((s,p)=>s+p[0],0)/nr.length,nr.reduce((s,p)=>s+p[1],0)/nr.length];}
       let mp=null;if(h.merged){const a=gp(h.merged[0]),b=gp(h.merged[1]);mp=[(a[0]+b[0])/2,(a[1]+b[1])/2];}
       const at=v=>v===h.born?bp:(mp&&v===h.merged[0])?mp:gp(v);
       g.setLineDash([6,5]);g.lineWidth=3;
@@ -365,11 +425,10 @@ function render(now){
   const cnt=gg=>{const m=new Map(),NN=nbrs(gg);for(const v of gg.V){const d=NN.get(v).size;m.set(d,(m.get(d)||0)+1);}return m;},cy=cnt(gr),ct=cnt(L.target);
   const degs=[...new Set([...cy.keys(),...ct.keys()])].sort((a,b)=>a-b),cw=Math.min(52,(P.w-16)/Math.max(1,degs.length)),y0=P.y+P.h-36;
   g.strokeStyle='#e3e9ef';g.lineWidth=1;g.beginPath();g.moveTo(P.x+10,y0-12);g.lineTo(P.x+P.w-10,y0-12);g.stroke();
-  g.font='600 11px Fredoka, system-ui, sans-serif';g.fillStyle='#6b7a8b';g.textAlign='left';g.fillText('you / target',P.x+12,y0+4);
-  degs.forEach((d,i)=>{const x=P.x+P.w-12-cw*(degs.length-1-i)-cw/2,a=cy.get(d)||0,b=ct.get(d)||0,good=a===b;
+  degs.forEach((d,i)=>{const x=P.x+12+cw*i+16,a=cy.get(d)||0,b=ct.get(d)||0,good=a===b;
     node(g,x-10,y0+4,6,d);g.font='600 13px Fredoka, system-ui, sans-serif';g.textAlign='left';g.fillStyle=good?'#23a88f':'#1d2a3a';g.fillText(`${a}/${b}`,x-2,y0+4);});
   const allOk=degs.every(d=>(cy.get(d)||0)===(ct.get(d)||0));
-  g.font='600 11px Fredoka, system-ui, sans-serif';g.textAlign='left';g.fillStyle=allOk?'#23a88f':'#6b7a8b';g.fillText(allOk?'colours match ✓':'match every colour count',P.x+12,y0+24);
+  g.font='600 11px Fredoka, system-ui, sans-serif';g.textAlign='left';g.fillStyle=allOk?'#23a88f':'#6b7a8b';g.fillText(allOk?'colours match ✓':'colour counts, you / target',P.x+12,y0+24);
   requestAnimationFrame(render);
 }
 load(0);requestAnimationFrame(render);
