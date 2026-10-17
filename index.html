@@ -58,7 +58,6 @@ canvas#board{display:block;width:100%;height:100%;touch-action:none;cursor:point
 .rule span{font-size:15px}.rule kbd{font-family:var(--f-display);font-size:11px;color:var(--muted);margin-left:5px}
 .rule.sel{box-shadow:0 0 0 3px var(--accent) inset,0 3px 0 #b9c5d1}
 #hint{color:var(--muted);margin:0;min-width:0;flex:1 1 220px;font-size:14px;line-height:1.3}
-#hint.warn{color:var(--accent);font-weight:700}
 .stats{display:flex;gap:18px;font-family:var(--f-display);font-variant-numeric:tabular-nums}
 .stat{display:grid;line-height:1.1;text-align:center}.stat b{font-size:20px;font-weight:600}
 .stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
@@ -427,7 +426,7 @@ const CHAPTERS=[[1,"Basics"],[14,"Pruning"],[22,"Smoothing"],[32,"Twins"],[44,"F
 const chapterOf=i=>CHAPTERS.filter(c=>c[0]<=i+1).pop();
 /* fewest moves; the original levels have no stored best, so map them once */
 const bestOf=L=>L.best??(L.best=(()=>{const M=explore(L.start,L.rules,capOf(L));return M.S.get(hash(L.target)).d;})());
-let li=0,dist=null,dead=false,parts=[],L,gr,pos,hist,movesN,rule=null,picks=[],won=false,morph=null,drag=null,bad=null,tlay=null,hover=null,hint=null,hintMsg='';
+let li=0,dist=null,parts=[],L,gr,pos,hist,movesN,rule=null,picks=[],won=false,morph=null,drag=null,bad=null,tlay=null,hover=null,hint=null,hintMsg='';
 let save={stars:{},lab:{}};try{save=Object.assign(save,JSON.parse(localStorage.getItem('rewrite-save')||'{}'));}catch(e){}
 /* v2-v5 reordered later levels, so stars saved there belonged to other puzzles */
 if((save.v||1)<5){for(const k of Object.keys(save.stars))if(+k>=11&&k!=='12'&&k!=='14')delete save.stars[k];save.v=5;}
@@ -435,7 +434,7 @@ if((save.v||1)<5){for(const k of Object.keys(save.stars))if(+k>=11&&k!=='12'&&k!
 if(save.v<6){for(const k of [22,31,32,43,44,57,58,69,70])delete save.stars[k];save.v=6;}
 function persist(){try{localStorage.setItem('rewrite-save',JSON.stringify(save));}catch(e){}}
 
-/* ---------- solver worker: level maps (instant hints, dead-end warnings) and Lab puzzles, off the main thread ---------- */
+/* ---------- solver worker: level maps (instant hints) and Lab puzzles, off the main thread ---------- */
 function job(m){
   if(m.type==='map'){const M=explore(m.L.start,m.L.rules,capOf(m.L));return {dist:M.full?toTarget(M,hash(m.L.target)):null};}
   return {L:generate(m.tier,m.allowed)};}
@@ -510,8 +509,7 @@ function buildRules(){
     const c=document.createElement('canvas');c.width=120;c.height=48;icon(c.getContext('2d'),rid);
     b.appendChild(c);const sp=document.createElement('span');sp.innerHTML=`${RULES[rid].name}<kbd>${i+1}</kbd>`;b.appendChild(sp);
     b.onclick=()=>pickRule(rid);el.appendChild(b);});
-  $('#hint').textContent=dead&&!hintMsg?'Dead end: the target can no longer be reached from here. Undo with Z.':hintMsg||(L.tip&&movesN===0?L.tip:rule?RULES[rule].hint+'.':'Pick a rule, or click the board.');
-  $('#hint').classList.toggle('warn',dead);
+  $('#hint').textContent=hintMsg||(L.tip&&movesN===0?L.tip:rule?RULES[rule].hint+'.':'Pick a rule, or click the board.');
 }
 function pickRule(rid){rule=rule===rid?null:rid;picks=[];hint=null;hintMsg='';buildRules();}
 const load=i=>play(LEVELS[i],i);
@@ -521,16 +519,15 @@ function play(lvl,i){
   pos=initPos(gr,300,280,90);
   if(L.start.pos)L.start.V.forEach((v,i)=>{const [x,y]=L.start.pos[i];pos.set(v,{x:300+x*300,y:280+y*300,vx:0,vy:0});});
   relax(gr,pos,L.start.pos?40:300,300,280);
-  tlay=targetLayout(L.target,L.target.pos);hist=[];movesN=0;hint=null;hintMsg='';rule=L.rules.length===1?L.rules[0]:null;picks=[];won=false;morph=null;dist=null;dead=false;
-  bestOf(L);ask({type:'map',L:{start:L.start,target:L.target,rules:L.rules,cap:capOf(L)}},r=>{if(lvl!==L)return;dist=r.dist;checkDead();});
+  tlay=targetLayout(L.target,L.target.pos);hist=[];movesN=0;hint=null;hintMsg='';rule=L.rules.length===1?L.rules[0]:null;picks=[];won=false;morph=null;dist=null;
+  bestOf(L);ask({type:'map',L:{start:L.start,target:L.target,rules:L.rules,cap:capOf(L)}},r=>{if(lvl!==L)return;dist=r.dist;});
   $('#lvname').textContent=i<0?L.name:`${chapterOf(i)[1]} · ${L.name}`;$('#ov').hidden=true;$('#lvgrid').hidden=true;$('#labp').hidden=true;buildLevels();buildRules();updateHud();
 }
 const restart=()=>play(L,li);
 /* the level map knows every shape that can still reach the target */
-function checkDead(){dead=!!dist&&!won&&!dist.has(hash(gr));buildRules();}
 function updateHud(){$('#sMoves').textContent=movesN;$('#sBest').textContent=bestOf(L);}
 function snapshot(){return {gr:{next:gr.next,V:gr.V.slice(),E:new Set(gr.E)},pos:new Map([...pos].map(([k,p])=>[k,{...p}])),movesN};}
-function undo(){if(won||!hist.length)return;const s=hist.pop();gr=s.gr;pos=s.pos;movesN=s.movesN;picks=[];hint=null;hintMsg='';updateHud();checkDead();}
+function undo(){if(won||!hist.length)return;const s=hist.pop();gr=s.gr;pos=s.pos;movesN=s.movesN;picks=[];hint=null;hintMsg='';updateHud();buildRules();}
 function apply(){
   hist.push(snapshot());
   const h=RULES[rule].apply(gr,picks);
@@ -539,8 +536,9 @@ function apply(){
   if(h.merged){const [a,b]=h.merged,p=pos.get(a),q=pos.get(b);p.x=(p.x+q.x)/2;p.y=(p.y+q.y)/2;p.pop=performance.now();pos.delete(b);}
   for(const v of [...pos.keys()])if(!h.V.includes(v))pos.delete(v);
   gr={next:h.next,V:h.V,E:h.E};movesN++;picks=[];hint=null;hintMsg='';updateHud();
-  const m=iso(gr,L.target);if(!m)checkDead();
-  if(m){won=true;dead=false;rule=null;buildRules();
+  const m=iso(gr,L.target);
+  if(!m)buildRules();
+  if(m){won=true;rule=null;buildRules();
     const s=260,cx=300,cy=270,from=new Map([...pos].map(([k,p])=>[k,[p.x,p.y]])),to=new Map();for(const [v,w] of m){const [tx,ty]=tlay.get(w);to.set(v,[cx+tx*s,cy+ty*s]);}
     morph={t0:performance.now(),from,to};}
 }
@@ -594,7 +592,7 @@ addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.repeat)return;const k=
 /* the next move on a shortest route, read straight off the level map */
 function showHint(){if(won)return;
   if(!dist){hintMsg='Still mapping this level, try again in a moment.';buildRules();return;}
-  const left=dist.get(hash(gr));if(left===undefined){hintMsg='';checkDead();return;}
+  const left=dist.get(hash(gr));if(left===undefined){hintMsg='No hint from here. Undo and try another way.';buildRules();return;}
   for(const r of L.rules)for(const p of moves(gr,r)){const h=RULES[r].apply(gr,p);if(h.V.length>capOf(L)||dist.get(hash(h))!==left-1)continue;
     rule=r;picks=[];hint=p;hintMsg=`Next: ${RULES[r].name} on the glowing ${RULES[r].picks[0]==='edge'?'link':'nodes'}. ${left} move${left>1?'s':''} to go.`;buildRules();return;}}
 $('#bHint').onclick=showHint;
