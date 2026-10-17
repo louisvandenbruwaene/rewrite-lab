@@ -54,7 +54,7 @@ canvas#board{display:block;width:100%;height:100%;touch-action:none;cursor:point
 .dock{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
 .rules{display:flex;gap:6px;flex-wrap:wrap}
 .rule{display:flex;align-items:center;gap:6px;padding:5px 10px 5px 6px}
-.rule canvas{width:70px;height:28px}
+.rule canvas{width:85px;height:34px}
 .rule span{font-size:15px}.rule kbd{font-family:var(--f-display);font-size:11px;color:var(--muted);margin-left:5px}
 .rule.sel{box-shadow:0 0 0 3px var(--accent) inset,0 3px 0 #b9c5d1}
 #hint{color:var(--muted);margin:0;min-width:0;flex:1 1 220px;font-size:14px;line-height:1.3}
@@ -123,44 +123,44 @@ const cycle=n=>G(n,[...Array(n).keys()].map(i=>[i,(i+1)%n]));
 /* Each rule: picks = what the player clicks in order ('node' or 'edge'),
    valid(g,picks,cand) says whether cand may be the next pick, apply(g,picks) returns the new graph. */
 const RULES={
-  close:{name:'Close',hint:'Join the two ends of a bend',picks:['node','node'],
+  close:{name:'Closure',hint:'A friend of a friend becomes a friend: join the two ends of a bend',picks:['node','node'],
     valid(g,p,c){const N=nbrs(g);if(p.length===0)return [...N.get(c)].some(b=>[...N.get(b)].some(x=>x!==c&&!N.get(c).has(x)));
       const a=p[0];return c!==a&&!N.get(a).has(c)&&[...N.get(a)].some(b=>N.get(b).has(c));},
     apply(g,[a,c]){const h=clone(g);h.E.add(key(a,c));return h;}},
-  sprout:{name:'Sprout',hint:'Grow a new node off one',picks:['node'],
+  sprout:{name:'Pendant',hint:'Hang a new leaf off a node',picks:['node'],
     valid:()=>true,apply(g,[a]){const h=clone(g),n=h.next++;h.V.push(n);h.E.add(key(a,n));h.born=n;h.near=[a];return h;}},
-  split:{name:'Split',hint:'Put a node in the middle of a link',picks:['edge'],
+  split:{name:'Subdivide',hint:'Put a node in the middle of a link',picks:['edge'],
     valid:()=>true,apply(g,[[a,b]]){const h=clone(g),n=h.next++;h.V.push(n);h.E.delete(key(a,b));h.E.add(key(a,n));h.E.add(key(n,b));h.born=n;h.near=[a,b];return h;}},
-  contract:{name:'Merge',hint:'Shrink a link, its two ends become one',picks:['edge'],
+  contract:{name:'Contraction',hint:'Shrink a link, its two ends become one',picks:['edge'],
     valid:()=>true,apply(g,[[a,b]]){const h=clone(g),N=nbrs(g);h.V=h.V.filter(v=>v!==b);h.E=new Set([...h.E].filter(k=>{const [x,y]=k.split('-').map(Number);return x!==b&&y!==b;}));
       for(const x of N.get(b))if(x!==a)h.E.add(key(a,x));h.merged=[a,b];return h;}},
-  prune:{name:'Prune',hint:'Remove a leaf',picks:['node'],
+  prune:{name:'Leaf Blower',hint:'Remove a leaf',picks:['node'],
     valid(g,p,c){return nbrs(g).get(c).size===1&&g.V.length>2;},apply(g,[a]){const h=clone(g);h.V=h.V.filter(v=>v!==a);h.E=new Set([...h.E].filter(k=>!k.split('-').map(Number).includes(a)));return h;}},
-  cut:{name:'Cut',hint:'Remove one side of a triangle',picks:['edge'],
+  cut:{name:'Detriangulate',hint:'Remove one side of a triangle',picks:['edge'],
     valid(g,p,[a,b]){const N=nbrs(g);return [...N.get(a)].some(x=>N.get(b).has(x));},apply(g,[[a,b]]){const h=clone(g);h.E.delete(key(a,b));return h;}},
-  swap:{name:'Swap',hint:'Cross two links: a–b, c–d become a–c, b–d',picks:['node','node','node','node'],
+  swap:{name:'Square Dance',hint:'Two pairs change partners: a–b, c–d become a–c, b–d',picks:['node','node','node','node'],
     valid(g,p,c){const N=nbrs(g);
       if(p.length===0)return N.get(c).size>0;
       if(p.length===1)return N.get(p[0]).has(c);
       if(p.length===2)return c!==p[0]&&c!==p[1]&&!N.get(p[0]).has(c)&&[...N.get(c)].some(d=>d!==p[0]&&d!==p[1]&&!N.get(p[1]).has(d));
       return N.get(p[2]).has(c)&&c!==p[0]&&c!==p[1]&&!N.get(p[1]).has(c);},
     apply(g,[a,b,c,d]){const h=clone(g);h.E.delete(key(a,b));h.E.delete(key(c,d));h.E.add(key(a,c));h.E.add(key(b,d));return h;}},
-  smooth:{name:'Smooth',hint:'Remove a two-link node, its neighbours join up',picks:['node'],
+  smooth:{name:'Homeomorph',hint:'Iron out a two-link node, its neighbours join up',picks:['node'],
     valid(g,p,c){const n=[...nbrs(g).get(c)];return n.length===2&&!has(g,n[0],n[1]);},
     apply(g,[a]){const h=clone(g),[x,y]=nbrs(g).get(a);h.V=h.V.filter(v=>v!==a);h.E=new Set([...h.E].filter(k=>!k.split('-').map(Number).includes(a)));h.E.add(key(x,y));return h;}},
-  twin:{name:'Twin',hint:'Copy a node with all its links',picks:['node'],
+  twin:{name:'False Twin',hint:'Copy a node with all its links, but not to itself',picks:['node'],
     valid(g,p,c){return nbrs(g).get(c).size>0;},
     apply(g,[a]){const h=clone(g),n=h.next++;h.V.push(n);for(const x of nbrs(g).get(a))h.E.add(key(n,x));h.born=n;h.near=[a];return h;}},
-  flip:{name:'Flip',hint:'Toggle every link between a node\'s neighbours',picks:['node'],
+  flip:{name:'Complement',hint:'Toggle every link between a node\'s neighbours',picks:['node'],
     valid(g,p,c){return nbrs(g).get(c).size>1;},
     apply(g,[a]){const h=clone(g),n=[...nbrs(g).get(a)];for(let i=0;i<n.length;i++)for(let j=i+1;j<n.length;j++){const k=key(n[i],n[j]);h.E.has(k)?h.E.delete(k):h.E.add(k);}return h;}},
-  star:{name:'Star',hint:'Turn a triangle into a three-pointed star',picks:['node','node','node'],
+  star:{name:'Delta-Wye',hint:'Δ to Y: turn a triangle into a three-pointed star',picks:['node','node','node'],
     valid(g,p,c){const N=nbrs(g);
       if(p.length===0)return [...N.get(c)].some(b=>[...N.get(b)].some(x=>N.get(c).has(x)));
       if(p.length===1)return N.get(p[0]).has(c)&&[...N.get(c)].some(x=>N.get(p[0]).has(x));
       return c!==p[0]&&N.get(p[0]).has(c)&&N.get(p[1]).has(c);},
     apply(g,[a,b,c]){const h=clone(g),n=h.next++;h.V.push(n);for(const [x,y] of [[a,b],[b,c],[a,c]])h.E.delete(key(x,y));for(const x of [a,b,c])h.E.add(key(n,x));h.born=n;h.near=[a,b,c];return h;}},
-  fold:{name:'Fold',hint:'A three-link node folds into a triangle',picks:['node'],
+  fold:{name:'Wye-Delta',hint:'Y to Δ: a three-link node folds into a triangle',picks:['node'],
     valid(g,p,c){const n=[...nbrs(g).get(c)];return n.length===3&&!has(g,n[0],n[1])&&!has(g,n[1],n[2])&&!has(g,n[0],n[2]);},
     apply(g,[a]){const h=clone(g),[x,y,z]=nbrs(g).get(a);h.V=h.V.filter(v=>v!==a);h.E=new Set([...h.E].filter(k=>!k.split('-').map(Number).includes(a)));for(const [p,q] of [[x,y],[y,z],[x,z]])h.E.add(key(p,q));return h;}},
 };
@@ -260,14 +260,14 @@ const LEVELS=[
   {name:'All connected',rules:['close'],start:path(4),target:K4},
   {name:'Pentagon',rules:['split'],start:cycle(3),target:cycle(5)},
   {name:'House',rules:['sprout','close'],start:cycle(4),target:HOUSE},
-  {name:'Shrink',rules:['contract'],start:cycle(6),target:cycle(3),tip:'Merge pulls the two ends of a link into one node.'},
+  {name:'Shrink',rules:['contract'],start:cycle(6),target:cycle(3),tip:'Contraction pulls the two ends of a link into one node.'},
   {name:'Kite',rules:['sprout','close'],start:cycle(3),target:G(5,[[0,1],[1,2],[2,0],[0,3],[3,4]])},
-  {name:'Two become one',rules:['swap'],start:G(6,[[0,1],[1,2],[2,0],[3,4],[4,5],[5,3]]),target:cycle(6),tip:'Swap: click a, b on one triangle, then c, d on the other.'},
-  {name:'Bowtie',tip:'Cut removes one side of a triangle.',rules:['close','cut'],start:cycle(5),target:G(5,[[0,1],[1,2],[2,0],[0,3],[3,4],[4,0]])},
+  {name:'Two become one',rules:['swap'],start:G(6,[[0,1],[1,2],[2,0],[3,4],[4,5],[5,3]]),target:cycle(6),tip:'Square Dance: click a, b on one triangle, then c, d on the other.'},
+  {name:'Bowtie',tip:'Detriangulate removes one side of a triangle.',rules:['close','cut'],start:cycle(5),target:G(5,[[0,1],[1,2],[2,0],[0,3],[3,4],[4,0]])},
   /* levels 12-100 (13 and 15 are originals): picked from a solver search along a rising, wavy difficulty curve; at most three optimal routes each; best = fewest moves, verified by node tools/check.cjs and tools/stars.cjs */
   {name:'K2,3',rules:['close','cut'],start:SH.Bull,target:SH.K23,best:3,cap:6},
   {name:'Prism',rules:['close','swap','cut'],start:cycle(6),target:G(6,[[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])},
-  {name:'Isomer',rules:['close','prune','cut'],start:SH.K23,target:G(4,[[0,3],[1,2],[1,3],[0,1]]),best:4,cap:6,tip:'Prune removes a leaf, a node with a single link.'},
+  {name:'Isomer',rules:['close','prune','cut'],start:SH.K23,target:G(4,[[0,3],[1,2],[1,3],[0,1]]),best:4,cap:6,tip:'Leaf Blower removes a leaf, a node with a single link.'},
   {name:'Three utilities',rules:['swap','close','cut'],start:cycle(6),target:SH.K33},
   {name:'K2,4',rules:['close','cut'],start:SH.S5,target:SH.K24,best:5,cap:7},
   {name:'Star',rules:['contract','split','close'],start:SH.K5,target:SH.S4,best:7,cap:6},
@@ -275,7 +275,7 @@ const LEVELS=[
   {name:'Catalyst',rules:['contract','split','close'],start:SH.W4,target:G(6,[[1,2],[0,2],[1,3],[2,3],[0,4],[3,4],[0,1],[0,5],[3,5],[4,5]]),best:4,cap:6},
   {name:'Lattice',rules:['contract','split','close'],start:SH.C5,target:G(6,[[0,3],[0,4],[1,4],[0,1],[0,2],[2,5],[3,5],[0,5]]),best:5,cap:6},
   {name:'Helix',rules:['contract','split','close'],start:SH.Bowtie,target:G(6,[[0,2],[2,3],[0,3],[0,4],[0,5],[1,5],[0,1]]),best:5,cap:6},
-  {name:'Crystal',rules:['smooth','swap'],start:SH.TriChain,target:G(5,[[0,1],[1,2],[2,3],[1,3],[3,4],[0,3],[1,4]]),best:3,cap:8,tip:'Smooth takes out a two-link node and joins its neighbours.'},
+  {name:'Crystal',rules:['smooth','swap'],start:SH.TriChain,target:G(5,[[0,1],[1,2],[2,3],[1,3],[3,4],[0,3],[1,4]]),best:3,cap:8,tip:'Homeomorph takes out a two-link node and joins its neighbours.'},
   {name:'Polymer',rules:['smooth','sprout'],start:SH.Tree8,target:G(9,[[0,2],[0,3],[1,4],[1,5],[2,6],[0,1],[0,7],[0,8]]),best:3,cap:9},
   {name:'Vessel',rules:['contract','split','close'],start:SH.W4,target:G(6,[[1,2],[0,2],[0,3],[1,3],[2,3],[0,1],[0,5],[4,5]]),best:4,cap:6},
   {name:'Filament',rules:['smooth','split','close'],start:SH.K23,target:G(6,[[0,3],[1,3],[0,1],[0,4],[2,4],[1,5],[2,5],[4,5]]),best:4,cap:6},
@@ -285,7 +285,7 @@ const LEVELS=[
   {name:'Spindle',rules:['close','cut'],start:SH.Theta,target:G(6,[[0,1],[1,2],[3,4],[4,5],[0,3],[0,2],[3,5]]),best:4,cap:7},
   {name:'Membrane',rules:['swap','close','cut'],start:SH.C6,target:G(6,[[1,2],[2,3],[0,5],[0,2],[0,4]]),best:4,cap:7},
   {name:'Scaffold',rules:['swap','contract','split'],start:SH.Sun3,target:G(7,[[1,3],[0,5],[0,1],[1,4],[0,6],[1,2],[5,6]]),best:4,cap:7},
-  {name:'Mandala',rules:['twin','contract'],start:SH.S4,target:G(5,[[0,1],[0,2],[1,3],[2,3],[0,3],[1,4],[2,4],[3,4],[0,4]]),best:4,cap:6,tip:'Twin copies a node with all its links, but not a link to itself.'},
+  {name:'Mandala',rules:['twin','contract'],start:SH.S4,target:G(5,[[0,1],[0,2],[1,3],[2,3],[0,3],[1,4],[2,4],[3,4],[0,4]]),best:4,cap:6,tip:'False Twin copies a node with all its links, but not a link to itself.'},
   {name:'Nucleus',rules:['twin','contract'],start:SH.Triforce,target:G(7,[[0,1],[0,2],[1,3],[0,3],[1,4],[2,4],[3,4],[0,4],[0,5],[3,5],[4,5],[1,5],[0,6],[4,6]]),best:5,cap:7},
   {name:'Cluster',rules:['twin','contract'],start:SH.W5,target:G(7,[[0,1],[2,3],[0,3],[0,2],[1,4],[3,4],[2,4],[1,5],[3,5],[2,5],[1,6],[3,6],[2,6]]),best:5,cap:7},
   {name:'Fractal',rules:['twin','smooth','cut'],start:SH.Octa,target:G(7,[[0,1],[1,2],[2,3],[0,3],[0,4],[1,4],[2,4],[3,4],[3,5],[1,3],[1,6]]),best:7,cap:7},
@@ -297,7 +297,7 @@ const LEVELS=[
   {name:'Triforce',rules:['twin','smooth','cut'],start:SH.K23,target:SH.Triforce,best:6,cap:6},
   {name:'Circuit',rules:['twin','smooth','cut'],start:SH.Sun3,target:G(6,[[0,1],[0,2],[1,3],[0,4],[3,4],[0,5],[3,5]]),best:6,cap:7},
   {name:'Harness',rules:['twin','close','cut'],start:SH.Gem,target:G(6,[[0,1],[1,2],[2,3],[1,4],[2,4],[3,4],[1,5],[0,5]]),best:3,cap:6},
-  {name:'Relay',rules:['flip','swap'],start:SH.Gem,target:G(5,[[1,2],[2,3],[0,2],[2,4],[1,3],[0,1],[0,3]]),best:4,cap:6,tip:'Flip toggles every link among the neighbours of one node.'},
+  {name:'Relay',rules:['flip','swap'],start:SH.Gem,target:G(5,[[1,2],[2,3],[0,2],[2,4],[1,3],[0,1],[0,3]]),best:4,cap:6,tip:'Complement toggles every link among the neighbours of one node.'},
   {name:'Seven-spoke wheel',rules:['flip'],start:SH.Wagner,target:SH.W7,best:4,cap:9},
   {name:'Octahedron',rules:['flip','swap'],start:SH.C6,target:SH.Octa,best:6,cap:7},
   {name:'K5',rules:['flip','smooth','split'],start:SH.P5,target:SH.K5,best:7,cap:6},
@@ -311,7 +311,7 @@ const LEVELS=[
   {name:'Dumbbell',rules:['flip','twin','prune'],start:SH.S5,target:G(7,[[0,1],[0,2],[0,3],[1,4],[2,4],[3,4],[1,5],[2,5],[3,5],[0,5],[1,6],[2,6],[3,6],[5,6]]),best:7,cap:7},
   {name:'Hourglass',rules:['flip','contract'],start:SH.C7,target:G(6,[[1,2],[3,4],[1,3],[0,2],[0,3],[2,5],[3,5],[1,4],[0,4],[4,5],[0,5]]),best:5,cap:8},
   {name:'Kite tail',rules:['flip','contract'],start:SH.P7,target:G(6,[[1,2],[4,5],[1,3],[1,4],[0,2],[0,3],[0,4],[1,5],[0,5]]),best:5,cap:8},
-  {name:'Vertex',rules:['star','swap'],start:SH.Sun3,target:G(7,[[0,1],[3,6],[0,2],[5,6],[1,2],[4,6]]),best:4,cap:7,tip:'Star: click a corner of a triangle. One click is enough when the triangle is clear.'},
+  {name:'Vertex',rules:['star','swap'],start:SH.Sun3,target:G(7,[[0,1],[3,6],[0,2],[5,6],[1,2],[4,6]]),best:4,cap:7,tip:'Delta-Wye: click a corner of a triangle. One click is enough when the triangle is clear.'},
   {name:'K3,4',rules:['star','swap'],start:SH.Octa,target:SH.K34,best:4,cap:7},
   {name:'Trident',rules:['star','flip'],start:SH.Cube,target:G(9,[[1,5],[6,7],[4,7],[3,7],[1,4],[2,5],[2,4],[0,5],[4,8],[1,6],[0,6],[2,3],[0,8],[0,3]]),best:6,cap:9},
   {name:'Pendant',rules:['star','flip'],start:SH.Mobius3,target:G(7,[[1,6],[3,6],[2,6],[4,6],[0,1],[0,3],[1,3],[2,5],[4,5],[0,5],[2,4]]),best:6,cap:7},
@@ -323,7 +323,7 @@ const LEVELS=[
   {name:'Heptagon',rules:['star','swap','cut'],start:SH.Triforce,target:SH.C7,best:4,cap:7},
   {name:'Lever',rules:['star','flip','prune'],start:SH.K33,target:G(7,[[2,3],[3,5],[3,4],[0,2],[0,5],[1,2],[1,5],[0,6],[1,6],[3,6],[2,5],[2,4],[4,5],[4,6]]),best:8,cap:7},
   {name:'Hinge',rules:['star','flip'],start:SH.Bull,target:G(6,[[0,2],[1,5],[3,5],[2,5],[0,4],[4,5],[1,3],[1,2],[1,4],[2,3],[3,4]]),best:6,cap:6},
-  {name:'Arrowhead',rules:['fold','swap'],start:SH.Wagner,target:G(6,[[1,2],[2,3],[3,4],[4,5],[0,3],[1,5],[0,5],[2,5],[0,1],[0,4],[2,4],[0,2]]),best:3,cap:9,tip:'Fold turns a three-link node into a triangle.'},
+  {name:'Arrowhead',rules:['fold','swap'],start:SH.Wagner,target:G(6,[[1,2],[2,3],[3,4],[4,5],[0,3],[1,5],[0,5],[2,5],[0,1],[0,4],[2,4],[0,2]]),best:3,cap:9,tip:'Wye-Delta turns a three-link node into a triangle.'},
   {name:'Pivot',rules:['star','fold'],start:SH.Petersen,target:G(8,[[1,2],[0,4],[2,6],[3,5],[5,6],[4,6],[0,2],[2,3],[1,5],[0,5],[1,4],[3,4],[0,7],[1,7],[3,7]]),best:4,cap:11},
   {name:'Spark',rules:['star','fold','swap'],start:SH.Octa,target:G(7,[[2,3],[0,5],[2,5],[1,5],[1,3],[0,3],[3,4],[4,5],[3,5],[1,6],[2,6],[4,6]]),best:7,cap:7},
   {name:'Coil',rules:['star','fold','swap'],start:SH.Prism,target:G(7,[[1,5],[2,5],[4,5],[3,5],[0,5],[1,2],[0,6],[3,6],[4,6]]),best:8,cap:7},
@@ -406,6 +406,7 @@ function analyze(L){const M=explore(L.start,L.rules,capOf(L)),th=hash(L.target),
 /* ---------- Lab: fresh puzzles from a start and rule set known to hold good ones ---------- */
 const connected=g=>{const N=nbrs(g),s=new Set([g.V[0]]),q=[g.V[0]];while(q.length){const v=q.pop();for(const w of N.get(v))if(!s.has(w)){s.add(w);q.push(w);}}return s.size===g.V.length;};
 const LAB={easy:[3,4.8],medium:[4.8,6.5],hard:[6.5,9.5]};
+const TIER={easy:'Lemma',medium:'Proposition',hard:'Theorem'};
 /* COMBOS: [rules, start shape, lowest and highest difficulty of the good targets it holds] */
 const COMBOS=[["swap","K34",1.9,2.38],["flip+smooth+split","S3",3.1,4.58],["flip+smooth+split","S4",7.11,9.77],["flip+smooth+split","K4",3.12,4.86],["flip+smooth+split","K23",5.12,8],["flip+smooth+split","W4",6.43,8.38],["flip+smooth+split","House",6.34,8.28],["flip+smooth+split","Gem",5.92,6.59],["flip+smooth+split","Tadpole",5.96,7.43],["flip","C8",6.26,6.74],["flip","P6",2.31,3.76],["flip","P7",4.27,4.57],["flip","Tree8",3.13,3.61],["flip","Lollipop",3.13,3.61],["flip","Triforce",2.01,2.94],["flip","TriChain",4.11,4.59],["flip","W6",3.33,4.34],["flip","Sun4",1.75,2.24],["flip","Spider",1.71,2.77],["flip","Butterfly2",1.71,2.77],["flip","Domino",2.04,3.14],["flip","Theta",2.04,3.14],["flip+swap","K24",6.19,6.67],["flip+swap","TwoTri",5.38,7.29],["flip+swap","W5",1.98,3.34],["flip+swap","Domino",5.55,6.67],["flip+swap","Envelope",2.13,3.33],["flip+swap","Fan4",2.13,3.33],["star+fold+swap","C6",5.1,8.04],["star+fold+swap","P6",3.57,5.77],["star+fold+swap","P7",6.45,8.66],["star+fold+swap","K23",2.69,5.65],["star+fold+swap","K24",6.26,10.09],["star+fold+swap","Prism",7.87,9.04],["star+fold+swap","Tree7",5.04,8.38],["star+fold+swap","Triforce",6.53,6.83],["star+fold+swap","TwoTri",4.69,7.64],["star+fold+swap","W4",2.28,4.56],["star+fold+swap","Sun3",5.22,7.21],["star+fold+swap","House",2.33,5.31],["star+fold+swap","Bowtie",2.13,7.16],["star+fold+swap","Domino",5.86,7.73],["star+fold+swap","Envelope",2.6,4.94],["star+fold+swap","Gem",2.6,4.94],["star+fold+swap","Fan4",2.6,4.94],["flip+split+prune","S4",4.77,5.07],["flip+split+prune","K5",4.87,6.44],["flip+split+prune","K23",4.8,4.98],["twin+prune+cut","Bull",4.14,5.67],["close+cut","P6",2.74,3.58],["close+cut","S4",2.45,3.34],["close+cut","S5",3.77,4.25],["close+cut","K23",2.33,3.21],["close+cut","K24",3.63,4.77],["close+cut","Prism",3.58,3.76],["close+cut","Theta",3.66,4.14],["close+cut","Tadpole",2.16,3.04],["swap+cut","K33",3.74,4.7],["swap+cut","Prism",3.44,4.4],["swap+cut","Butterfly2",2.17,3.87],["swap+cut","Mobius3",3.74,4.7],["swap+cut","Domino",2.45,3.35],["contract+sprout","S4",1.8,1.98],["contract+sprout","K5",1.75,1.75],["contract+sprout","Prism",2.6,2.6],["contract+sprout","Tree7",2.6,2.78],["contract+sprout","Tree8",3.15,3.32],["contract+sprout","Caterpillar",3,3.17],["contract+sprout","TriChain",2.99,2.99],["contract+sprout","W4",2.24,2.41],["contract+sprout","W5",2.67,2.67],["contract+sprout","Spider",2.35,2.52],["contract+sprout","House",2.54,2.71],["contract+sprout","Bowtie",2.12,2.3],["contract+sprout","Domino",2.68,2.68],["contract+sprout","Theta",2.68,2.68],["contract+sprout","Gem",2.5,2.67],["contract+sprout","Fan4",2.5,2.67],["contract+sprout","Fan5",2.85,3.02],["swap+close+cut","C6",3.68,4.15],["flip+contract","C6",3.52,4.49],["flip+contract","K24",2.19,2.82],["flip+contract","Prism",2.33,3.2],["flip+contract","DoubleStar",7.08,8.93],["flip+contract","Tree7",6.48,8.22],["flip+contract","TriChain",7.25,8.27],["flip+contract","Octa",2.43,3.32],["flip+contract","W5",2.69,3.54],["flip+contract","W6",6.49,7.25],["flip+contract","Fan5",3,4.3],["twin+contract","C5",3.7,5.03],["twin+contract","P4",1.9,3.56],["twin+contract","P5",3.84,4.79],["twin+contract","K23",1.75,2.22],["twin+contract","House",2.9,4.28],["twin+contract","Envelope",2.89,4.12],["twin+contract","Gem",2.89,4.12],["twin+contract","Bull",2.96,4.19],["swap+contract+split","K23",2.82,3.83],["flip+prune","K24",2.58,3.98],["flip+prune","K33",2.37,3.04],["flip+prune","K34",2.86,4.08],["flip+prune","Tree7",2.93,3.95],["flip+prune","Tree8",4.74,5.22],["flip+prune","Caterpillar",4.67,5.62],["flip+prune","Octa",2.83,3.61],["flip+prune","Sun4",3.49,4.11],["flip+prune","Mobius3",2.37,3.04],["star+fold","Lollipop",2.24,3.8],["star+fold","Mobius3",1.38,3.73],["fold+swap","K34",2.42,3.52],["fold+swap","Cube",2.38,4.99],["fold+swap","Tree7",2.32,3.16],["fold+swap","Tree8",4.54,4.84],["fold+swap","Lollipop",3.35,4.64],["fold+swap","Sun4",3.92,4.95],["fold+swap","Spider",3.78,6.7],["smooth+sprout","C4",1.38,1.38],["smooth+sprout","P6",2.01,2.19],["smooth+sprout","K23",1.8,1.8],["smooth+sprout","K24",1.8,1.8],["smooth+sprout","Tree7",2.01,2.01],["smooth+sprout","House",1.72,1.9],["flip+twin+prune","K4",3.08,4.32],["flip+twin+prune","K33",7.71,8.7],["flip+twin+prune","Octa",6.87,8.2],["flip+twin+prune","Sun3",5.9,6.95],["flip+cut+close","K23",2.26,2.73],["flip+cut+close","K24",4.09,4.84],["flip+cut+close","K33",4,5.25],["flip+cut+close","Sun3",4.09,5.35],["contract+split+close","C5",5.61,7],["contract+split+close","P4",2.48,4.18],["contract+split+close","P5",4.62,6.19],["contract+split+close","K4",3.84,5.47],["contract+split+close","K5",7.27,8.34],["contract+split+close","W4",6.05,7.43],["contract+split+close","Bowtie",5.09,6.17],["contract+split+close","Envelope",5.59,7.27],["contract+split+close","Tadpole",5.31,6.1],["star+fold+flip","C5",8.65,8.83],["star+fold+flip","S3",5.28,6.59],["star+fold+flip","K4",4.85,6.17],["star+fold+flip","House",8.35,8.53],["star+fold+flip","Bowtie",5.97,7.74],["star+fold+flip","Envelope",8.65,8.82],["star+fold+flip","Bull",5.61,6.79],["flip+smooth+split","P5",6.32,7.59],["flip+smooth+split","Bowtie",6.63,8.1],["flip+smooth+split","Bull",6.25,8.36],["flip","C6",2.01,2.88],["flip","Caterpillar",3.21,3.76],["flip+swap","C6",6.05,6.87],["flip+swap","Octa",6.06,8.24],["flip+swap","Gem",2.13,3.33],["star+fold+swap","K33",7.68,8.84],["star+fold+swap","Octa",7.05,9.35],["star+fold+swap","Mobius3",7.68,8.84],["star+fold+swap","Bull",2.18,3.83],["flip+split+prune","K4",2.46,3.74],["close+cut","C6",3.12,4.28],["close+cut","Domino",3.66,4.14],["contract+sprout","K4",1.75,1.75],["contract+sprout","Tadpole",2.43,2.6],["flip+contract","P6",4.48,6.34],["flip+contract","Triforce",3.01,3.99],["twin+contract","C4",1.6,2.97],["twin+contract","Fan4",2.89,4.12],["twin+contract","Tadpole",2.93,3.71],["sprout+close+cut","House",2.95,3.43],["flip+prune","K23",1.9,3.26],["flip+prune","W4",2.08,2.55],["flip+twin+prune","K23",4.51,5.4],["flip+twin+prune","W4",4.5,5.91],["flip+twin+prune","Mobius3",7.71,8.7],["flip+cut+close","C6",4.74,5.86],["contract+split+close","Fan4",5.59,7.27],["star+fold+flip","Tadpole",5.76,6.93],["flip+smooth+split","K5",6.68,9.34],["flip+smooth+split","Envelope",5.92,6.59],["flip","C7",4.99,5.9],["flip","Wagner",2.2,3.25],["flip","Bowtie",1.68,1.98],["flip","Fan5",2.24,2.72],["star+fold+swap","C7",7.88,12.59],["star+fold+swap","Theta",5.86,7.73],["twin+prune+cut","Sun3",7.01,7.82],["close+cut","Fan5",3.24,4.6],["swap+cut","Theta",2.45,3.35],["contract+sprout","P8",2.44,2.61],["contract+sprout","K23",2.09,2.26],["contract+sprout","Triforce",2.81,2.81],["contract+sprout","Envelope",2.5,2.67],["swap+close+cut","K23",2.71,3.39],["smooth+close+cut","Sun3",3.72,6.05],["flip+contract","C7",6.9,8.33],["flip+contract","Sun3",2.62,3.2],["flip+contract","Butterfly2",5.98,7.97],["flip+contract","Mobius3",2.9,3.2],["twin+contract","S3",2.05,3.35],["twin+contract","S4",2.74,4.23],["twin+contract","Bowtie",2.6,4.02],["flip+prune","Sun3",2.2,2.94],["flip+prune","Butterfly2",3.35,4.67],["flip+prune","Bowtie",1.83,2.4],["flip+twin+prune","K24",7.45,8.91],["flip+cut+close","Octa",3.95,5.4],["flip+cut+close","Bull",2.42,2.59],["contract+split+close","C4",3.19,4.82],["contract+split+close","House",5.19,6.57],["contract+split+close","Bull",4.2,5.6],["star+fold+flip","P5",6.29,7.16],["star+fold+flip","K23",7.14,8.01],["flip","P8",4.99,6.07],["flip+swap","C5",2.13,3.33],["twin+prune+cut","Tadpole",4.12,4.93],["close+cut","C5",2.49,3.38],["swap+cut","K24",2.71,3.5],["swap+cut","TriChain",3.02,3.2],["swap+cut","Sun4",2.31,2.79],["contract+sprout","C5",1.63,1.8],["contract+sprout","C6",1.8,1.8],["contract+sprout","P7",2.34,2.34],["flip+contract","Lollipop",6.88,7.35],["flip+contract","Theta",3.06,4.07],["twin+contract","K4",1.68,2.12],["smooth+sprout","Caterpillar",2.51,2.51],["flip+twin+prune","K5",5.71,6.61],["contract+split+close","Gem",5.59,7.27],["star+fold+flip","Fan4",8.65,8.82],["flip+smooth+split","Fan4",5.92,6.59],["flip+swap","House",2.39,2.83],["flip+swap","Theta",5.55,6.67],["star+fold+swap","Spider",5.63,6.95],["twin+prune+cut","Triforce",5.9,6.08],["contract+sprout","Bull",2.6,2.6],["swap+close+cut","TwoTri",4.27,4.57],["flip+contract","K34",3.28,3.58],["flip+contract","Spider",5.33,7.46],["twin+contract","W4",2.14,2.71],["flip+prune","Spider",3.36,4.19],["star+fold","K33",1.38,3.73],["fold+swap","Wagner",2.54,4.75],["smooth+sprout","P8",2.33,2.5],["flip+twin+prune","S5",7.34,7.8],["flip","W4",1.71,2.01],["flip+swap","Fan5",5.07,5.07],["close+cut","House",2.19,3.08],["close+cut","Bowtie",2.14,2.62],["flip+contract","K33",2.9,3.2],["swap+contract+split","C5",3.06,3.51],["flip+twin+smooth+cut","S4",4.91,5.08],["star+fold","Wagner",5.87,5.87],["smooth+sprout","P7",2.22,2.22],["smooth+sprout","Tree8",2.75,2.75],["smooth+sprout","Lollipop",2.32,2.32],["flip+cut+close","Mobius3",4,5.25],["star+fold+flip","Gem",8.65,8.82],["flip","P5",1.68,1.98],["flip","Bull",1.71,2.01],["swap+cut","K23",1.8,2.48],["contract+sprout","P6",2.14,2.31],["twin+contract","K24",2.65,3.12],["smooth+swap","TwoSq",1.68,3.09],["contract+split+close","K23",5.93,6.23],["contract+sprout","C4",1.75,1.75],["smooth+sprout","C5",1.64,1.64]];
 /* allowed: the rules the player has met */
@@ -434,8 +435,8 @@ const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DEG=['#9aa5b1','#3d8bd9','#23a88f','#f0a92a','#e2603a','#a957c4','#5257d1'];
 const degCol=d=>DEG[Math.min(d,DEG.length-1)];
 const PANEL={x:566,y:14,w:220,h:180};
-/* chapters: [first level, name]; each one after Basics brings in a rule */
-const CHAPTERS=[[1,"Basics"],[14,"Pruning"],[22,"Smoothing"],[32,"Twins"],[44,"Flips"],[58,"Stars"],[70,"Folds"],[82,"Grand lab"],[101,"Masters"]];
+/* chapters: [first level, name]; each one after Axioms brings in a rule */
+const CHAPTERS=[[1,"Axioms"],[14,"Leaf Blower"],[22,"Homeomorphism"],[32,"False Twins"],[44,"Complements"],[58,"Delta-Wye"],[70,"Wye-Delta"],[82,"Grand Unification"],[101,"Erdős Problems"]];
 const chapterOf=i=>CHAPTERS.filter(c=>c[0]<=i+1).pop();
 /* fewest moves; the original levels have no stored best, so map them once */
 const bestOf=L=>L.best??(L.best=(()=>{const M=explore(L.start,L.rules,capOf(L));return M.S.get(hash(L.target)).d;})());
@@ -512,7 +513,7 @@ function buildLevels(){
       b.innerHTML=`<b>${i+1}</b><small>${'★'.repeat(s)}${'·'.repeat(3-s)}</small>`;b.title=LEVELS[i].name;b.onclick=()=>load(i);btns.appendChild(b);}});
   const tEl=$('#tiers');tEl.innerHTML='';
   for(const [tier,blurb] of [['easy','Warm-up'],['medium','A real think'],['hard','Brain burner']]){const r=save.lab[tier]||{solved:0,perfect:0},b=document.createElement('button');
-    b.innerHTML=`${tier[0].toUpperCase()+tier.slice(1)}<small>${blurb}</small><small>${r.solved} solved · ${r.perfect} perfect</small>`;b.onclick=()=>newLab(tier);tEl.appendChild(b);}
+    b.innerHTML=`${TIER[tier]}<small>${blurb}</small><small>${r.solved} solved · ${r.perfect} perfect</small>`;b.onclick=()=>newLab(tier);tEl.appendChild(b);}
 }
 /* one overlay at a time: the level grid or the Lab panel */
 function toggle(id){const el=$(id),open=el.hidden;$('#lvgrid').hidden=true;$('#labp').hidden=true;el.hidden=!open;}
@@ -525,7 +526,7 @@ function newLab(tier){$('#labp').hidden=false;$('#lvgrid').hidden=true;$('#labMs
 function buildRules(){
   const el=$('#rules');el.innerHTML='';
   L.rules.forEach((rid,i)=>{const b=document.createElement('button');b.className='rule'+(rule===rid?' sel':'');b.title=RULES[rid].hint;
-    const c=document.createElement('canvas');c.width=120;c.height=48;icon(c.getContext('2d'),rid);
+    const c=document.createElement('canvas');c.width=240;c.height=96;const cx=c.getContext('2d');cx.scale(2,2);icon(cx,rid);
     b.appendChild(c);const sp=document.createElement('span');sp.innerHTML=`${RULES[rid].name}<kbd>${i+1}</kbd>`;b.appendChild(sp);
     b.onclick=()=>pickRule(rid);el.appendChild(b);});
   $('#hint').textContent=hintMsg||(L.tip&&movesN===0?L.tip:rule?RULES[rule].hint+'.':'Pick a rule, or click the board.');
@@ -622,25 +623,30 @@ $('#ovRetry').onclick=restart;$('#ovNext').onclick=()=>li<0?newLab(L.lab):load(l
 /* a node's colour is its link count */
 function node(c,x,y,r,d,ring){c.fillStyle='rgba(20,35,55,.15)';c.beginPath();c.arc(x+1.5,y+2.5,r,0,7);c.fill();c.fillStyle=degCol(d);c.beginPath();c.arc(x,y,r,0,7);c.fill();c.lineWidth=r>9?2.5:1.5;c.strokeStyle='#fff';c.stroke();
   if(ring){c.strokeStyle=ring;c.lineWidth=3;c.beginPath();c.arc(x,y,r+6,0,7);c.stroke();}}
+/* rule icons: before, arrow, after; orange is what the move adds, faint dashes are what it removes. Each side stays inside its 48px panel. */
 function icon(c,rid){
-  c.clearRect(0,0,120,48);const ln=(a,b,col='#1d2a3a',w=2.5)=>{c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(...a);c.lineTo(...b);c.stroke();};
-  const dot=(p,col='#3d8bd9')=>{c.fillStyle=col;c.beginPath();c.arc(...p,5,0,7);c.fill();};
-  const arrow=()=>{ln([54,24],[66,24],'#8a97a6',2);c.fillStyle='#8a97a6';c.beginPath();c.moveTo(66,19);c.lineTo(72,24);c.lineTo(66,29);c.fill();};
-  const L2=(f)=>{f(0);arrow();f(78);};
+  c.clearRect(0,0,120,48);const NEW='#e2603a';
+  const ln=(a,b,col='#1d2a3a',w=2.5)=>{c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(...a);c.lineTo(...b);c.stroke();};
+  const dot=(p,col='#3d8bd9')=>{c.fillStyle=col;c.beginPath();c.arc(...p,4.5,0,7);c.fill();};
+  const add=(a,b)=>ln(a,b,NEW,3);
+  const gone=(a,b)=>{c.setLineDash([3,3]);ln(a,b,'#9aa6b2',2);c.setLineDash([]);};
+  const ghost=p=>{c.setLineDash([2,2]);c.strokeStyle='#9aa6b2';c.lineWidth=1.5;c.beginPath();c.arc(...p,4,0,7);c.stroke();c.setLineDash([]);};
+  const arrow=()=>{ln([52,24],[63,24],'#8a97a6',2);c.fillStyle='#8a97a6';c.beginPath();c.moveTo(62,19);c.lineTo(68,24);c.lineTo(62,29);c.fill();};
   const D={
-    close:o=>{const a=[o+8,36],b=[o+22,10],cc=[o+36,36];ln(a,b);ln(b,cc);if(o)ln(a,cc,'#e2603a',3);[a,b,cc].forEach(p=>dot(p));},
-    sprout:o=>{const a=[o+14,24];if(o){ln(a,[o+36,14],'#e2603a',3);dot([o+36,14],'#e2603a');}dot(a);},
-    split:o=>{const a=[o+6,24],b=[o+38,24];ln(a,b);if(o)dot([o+22,24],'#e2603a');dot(a);dot(b);},
-    contract:o=>{if(!o){const a=[o+8,24],b=[o+36,24];ln(a,b);dot(a);dot(b);}else dot([o+22,24],'#e2603a');},
-    prune:o=>{const a=[o+12,24];if(!o){ln(a,[o+36,14]);dot([o+36,14]);}dot(a);},
-    cut:o=>{const a=[o+8,36],b=[o+22,10],cc=[o+36,36];ln(a,b);ln(b,cc);if(!o)ln(a,cc,'#e2603a',3);[a,b,cc].forEach(p=>dot(p));},
-    swap:o=>{const a=[o+6,10],b=[o+38,10],cc=[o+6,38],d=[o+38,38];if(!o){ln(a,b);ln(cc,d);}else{ln(a,cc,'#e2603a',3);ln(b,d,'#e2603a',3);}[a,b,cc,d].forEach(p=>dot(p));},
-    smooth:o=>{const a=[o+6,24],b=[o+38,24];if(!o){ln(a,[o+22,24]);ln([o+22,24],b);dot([o+22,24]);}else ln(a,b,'#e2603a',3);dot(a);dot(b);},
-    twin:o=>{const a=[o+8,10],b=[o+8,38],m=[o+22,24],t=[o+38,24];ln(a,m);ln(b,m);if(o){ln(a,t,'#e2603a',3);ln(b,t,'#e2603a',3);dot(t,'#e2603a');}[a,b,m].forEach(p=>dot(p));},
-    flip:o=>{const m=[o+22,38],a=[o+6,12],b=[o+22,8],cc=[o+38,12];[a,b,cc].forEach(p=>ln(m,p));if(!o)ln(a,b);else ln(b,cc,'#e2603a',3);[m,a,b,cc].forEach(p=>dot(p));},
-    star:o=>{const a=[o+8,38],b=[o+22,8],cc=[o+36,38];if(!o){ln(a,b);ln(b,cc);ln(a,cc);}else{const m=[o+22,28];[a,b,cc].forEach(p=>ln(m,p,'#e2603a',3));dot(m,'#e2603a');}[a,b,cc].forEach(p=>dot(p));},
-    fold:o=>{const a=[o+8,38],b=[o+22,8],cc=[o+36,38];if(o){ln(a,b,'#e2603a',3);ln(b,cc,'#e2603a',3);ln(a,cc,'#e2603a',3);}else{const m=[o+22,28];[a,b,cc].forEach(p=>ln(m,p));dot(m);}[a,b,cc].forEach(p=>dot(p));},
-  };L2(D[rid]);
+    close:o=>{const a=[o+6,38],b=[o+24,8],cc=[o+42,38];ln(a,b);ln(b,cc);if(o)add(a,cc);[a,b,cc].forEach(p=>dot(p));},
+    sprout:o=>{const x=[o+6,38],a=[o+22,24],n=[o+40,10];ln(x,a);if(o){add(a,n);dot(n,NEW);}dot(x);dot(a);},
+    prune:o=>{const x=[o+6,38],a=[o+22,24],n=[o+40,10];ln(x,a);if(o){gone(a,n);ghost(n);}else{ln(a,n);dot(n);}dot(x);dot(a);},
+    split:o=>{const a=[o+5,24],b=[o+43,24],n=[o+24,24];if(o){add(a,n);add(n,b);dot(n,NEW);}else ln(a,b);dot(a);dot(b);},
+    contract:o=>{const p=[o+6,8],q=[o+42,8],a=[o+12,38],b=[o+36,38],m=[o+24,38];
+      if(o){ln(p,m);ln(q,m);dot(m,NEW);}else{ln(p,a);ln(q,b);ln(a,b);dot(a);dot(b);}dot(p);dot(q);},
+    cut:o=>{const a=[o+6,38],b=[o+24,8],cc=[o+42,38];ln(a,b);ln(b,cc);if(o)gone(a,cc);else ln(a,cc);[a,b,cc].forEach(p=>dot(p));},
+    swap:o=>{const a=[o+6,8],b=[o+42,8],cc=[o+6,40],d=[o+42,40];if(o){gone(a,b);gone(cc,d);add(a,cc);add(b,d);}else{ln(a,b);ln(cc,d);}[a,b,cc,d].forEach(p=>dot(p));},
+    smooth:o=>{const a=[o+5,38],m=[o+24,10],b=[o+43,38];if(o){gone(a,m);gone(m,b);ghost(m);add(a,b);}else{ln(a,m);ln(m,b);dot(m);}dot(a);dot(b);},
+    twin:o=>{const a=[o+24,6],b=[o+24,42],m=[o+6,24],t=[o+42,24];ln(a,m);ln(b,m);if(o){add(a,t);add(b,t);dot(t,NEW);}[a,b,m].forEach(p=>dot(p));},
+    flip:o=>{const m=[o+24,42],a=[o+5,16],b=[o+24,6],cc=[o+43,16];[a,b,cc].forEach(p=>ln(m,p));if(o){gone(a,b);add(b,cc);add(a,cc);}else ln(a,b);[m,a,b,cc].forEach(p=>dot(p));},
+    star:o=>{const a=[o+6,40],b=[o+24,6],cc=[o+42,40],m=[o+24,28];if(o){gone(a,b);gone(b,cc);gone(a,cc);[a,b,cc].forEach(p=>add(m,p));dot(m,NEW);}else{ln(a,b);ln(b,cc);ln(a,cc);}[a,b,cc].forEach(p=>dot(p));},
+    fold:o=>{const a=[o+6,40],b=[o+24,6],cc=[o+42,40],m=[o+24,28];if(o){ghost(m);add(a,b);add(b,cc);add(a,cc);}else{[a,b,cc].forEach(p=>ln(m,p));dot(m);}[a,b,cc].forEach(p=>dot(p));},
+  };D[rid](0);arrow();D[rid](72);
 }
 function render(now){
   g.setTransform(DPR*scale,0,0,DPR*scale,0,0);
