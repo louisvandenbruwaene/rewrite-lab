@@ -648,17 +648,23 @@ function icon(c,rid){
     fold:o=>{const a=[o+6,40],b=[o+24,6],cc=[o+42,40],m=[o+24,28];if(o){ghost(m);add(a,b);add(b,cc);add(a,cc);}else{[a,b,cc].forEach(p=>ln(m,p));dot(m);}[a,b,cc].forEach(p=>dot(p));},
   };D[rid](0);arrow();D[rid](72);
 }
-/* contraction preview: the merged node at the link's midpoint with its links, over the faded old ends and their links.
-   Returns the faded ends and a draw for the merged node, which goes on top of the nodes. */
-function previewContract(h,gp){
-  const [a,b]=h.merged,pa=gp(a),pb=gp(b),m=[(pa[0]+pb[0])/2,(pa[1]+pb[1])/2],N=nbrs(gr);
+/* move preview: the result in teal over the faded parts of the board the move takes away.
+   A new node sits beside or between the nodes it joins, a contraction's merged node at the link's midpoint, and every node
+   whose link count changes shows its new colour. Returns the faded nodes and a draw for the result's nodes, which goes on top. */
+function previewMove(h,gp){
+  const N=nbrs(gr),HN=nbrs(h),P=new Map();
+  if(h.born!==undefined){const nr=h.near.map(gp);P.set(h.born,nr.length===1?[nr[0][0]+40,nr[0][1]-30]:[nr.reduce((s,p)=>s+p[0],0)/nr.length,nr.reduce((s,p)=>s+p[1],0)/nr.length]);}
+  if(h.merged){const [pa,pb]=h.merged.map(gp);P.set(h.merged[0],[(pa[0]+pb[0])/2,(pa[1]+pb[1])/2]);}
+  const at=v=>P.get(v)||gp(v),moved=k=>k.split('-').some(v=>P.has(+v)),ends=k=>k.split('-').map(Number);
   g.lineCap='round';g.strokeStyle='rgba(247,249,251,.7)';g.lineWidth=6;
-  for(const v of [a,b])for(const x of N.get(v)){g.beginPath();g.moveTo(...gp(v));g.lineTo(...gp(x));g.stroke();}
+  for(const k of gr.E)if(!h.E.has(k)||moved(k)){const [a,b]=ends(k);g.beginPath();g.moveTo(...gp(a));g.lineTo(...gp(b));g.stroke();}
   g.strokeStyle='rgba(35,168,143,.95)';g.lineWidth=3;
-  for(const x of nbrs(h).get(a)){g.beginPath();g.moveTo(...m);g.lineTo(...gp(x));g.stroke();}
+  for(const k of h.E)if(!gr.E.has(k)||moved(k)){const [a,b]=ends(k);g.beginPath();g.moveTo(...at(a));g.lineTo(...at(b));g.stroke();}
   g.lineCap='butt';
-  const d=nbrs(h).get(a).size;
-  return {ids:[a,b],draw:()=>node(g,...m,13,d,'rgba(35,168,143,.95)')};}
+  const gone=gr.V.filter(v=>!h.V.includes(v)),changed=h.V.filter(v=>!P.has(v)&&N.get(v).size!==HN.get(v).size);
+  return {ids:[...gone,...changed,...(h.merged?[h.merged[0]]:[])],draw:()=>{
+    for(const v of changed)node(g,...gp(v),13,HN.get(v).size,null);
+    for(const [v,p] of P)node(g,...p,13,HN.get(v).size,'rgba(35,168,143,.95)');}};}
 function render(now){
   g.setTransform(DPR*scale,0,0,DPR*scale,0,0);
   g.fillStyle='#f7f9fb';g.fillRect(0,0,W,H);
@@ -679,17 +685,7 @@ function render(now){
   if(rule&&!won&&hover&&!(drag&&drag.moved)){
     const c=at(kind,...hover),done=c!==null&&!(kind==='node'&&picks.includes(c))?completions(gr,rule,picks.concat([c])):[];
     if(done.length===1){const h=RULES[rule].apply(gr,done[0]),gp=v=>{const p=pos.get(v);return p?[p.x,p.y]:null;};
-      let bp=null;if(h.born!==undefined){const nr=h.near.map(gp);bp=nr.length===1?[nr[0][0]+40,nr[0][1]-30]:[nr.reduce((s,p)=>s+p[0],0)/nr.length,nr.reduce((s,p)=>s+p[1],0)/nr.length];}
-      if(h.merged)fade=previewContract(h,gp);else{
-      const at=v=>v===h.born?bp:gp(v);
-      g.setLineDash([6,5]);g.lineWidth=3;
-      for(const k of gr.E)if(!h.E.has(k)){const [a,b]=k.split('-').map(Number);g.strokeStyle='rgba(226,96,58,.9)';g.beginPath();g.moveTo(...gp(a));g.lineTo(...gp(b));g.stroke();
-        const m=[(gp(a)[0]+gp(b)[0])/2,(gp(a)[1]+gp(b)[1])/2];g.setLineDash([]);g.lineWidth=2.5;g.beginPath();g.moveTo(m[0]-6,m[1]-6);g.lineTo(m[0]+6,m[1]+6);g.moveTo(m[0]+6,m[1]-6);g.lineTo(m[0]-6,m[1]+6);g.stroke();g.setLineDash([6,5]);g.lineWidth=3;}
-      for(const k of h.E)if(!gr.E.has(k)){const [a,b]=k.split('-').map(Number);g.strokeStyle='rgba(35,168,143,.95)';g.beginPath();g.moveTo(...at(a));g.lineTo(...at(b));g.stroke();}
-      g.setLineDash([]);
-      if(bp){g.strokeStyle='rgba(35,168,143,.95)';g.lineWidth=2.5;g.setLineDash([4,4]);g.beginPath();g.arc(...bp,13,0,7);g.stroke();g.setLineDash([]);}
-      for(const v of gr.V)if(!h.V.includes(v)){const p=gp(v);g.strokeStyle='rgba(226,96,58,.9)';g.lineWidth=2.5;g.beginPath();g.moveTo(p[0]-8,p[1]-8);g.lineTo(p[0]+8,p[1]+8);g.moveTo(p[0]+8,p[1]-8);g.lineTo(p[0]-8,p[1]+8);g.stroke();}
-    }}}
+      fade=previewMove(h,gp);}}
   if(hint&&!won){const pulse=reduce?.6:.45+.35*Math.sin(now/180);g.strokeStyle=`rgba(240,169,42,${pulse})`;g.lineWidth=10;
     hint.forEach((x,i)=>{if(i<picks.length)return;if(Array.isArray(x)){const a=pos.get(x[0]),b=pos.get(x[1]);if(a&&b){g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();}}else{const p=pos.get(x);if(p){g.beginPath();g.arc(p.x,p.y,22,0,7);g.stroke();}}});
     if(RULES[rule].picks.length>2)hint.forEach((x,i)=>{if(i<picks.length||Array.isArray(x))return;const p=pos.get(x);if(p){g.font='700 13px Fredoka, system-ui, sans-serif';g.fillStyle='#b77500';g.textAlign='center';g.textBaseline='middle';g.fillText('abcd'[i],p.x-18,p.y-18);}});}
