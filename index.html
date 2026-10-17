@@ -648,6 +648,20 @@ function icon(c,rid){
     fold:o=>{const a=[o+6,40],b=[o+24,6],cc=[o+42,40],m=[o+24,28];if(o){ghost(m);add(a,b);add(b,cc);add(a,cc);}else{[a,b,cc].forEach(p=>ln(m,p));dot(m);}[a,b,cc].forEach(p=>dot(p));},
   };D[rid](0);arrow();D[rid](72);
 }
+/* contraction preview: the link's two ends slide together into one node, dragging their links along, then hold on the result.
+   The old ends and their links fade so the moving copy reads as the move. Returns the faded ends and a draw for the moving copy, which goes on top of the nodes. */
+function previewContract(h,gp,now){
+  const [a,b]=h.merged,pa=gp(a),pb=gp(b),m=[(pa[0]+pb[0])/2,(pa[1]+pb[1])/2],N=nbrs(gr);
+  const t=reduce?1:Math.min(1,((now%1800)/1800)/.45),u=t<.5?2*t*t:1-2*(1-t)*(1-t);
+  const A=[pa[0]+(m[0]-pa[0])*u,pa[1]+(m[1]-pa[1])*u],B=[pb[0]+(m[0]-pb[0])*u,pb[1]+(m[1]-pb[1])*u];
+  g.lineCap='round';g.strokeStyle='rgba(247,249,251,.7)';g.lineWidth=6;
+  for(const v of [a,b])for(const x of N.get(v)){g.beginPath();g.moveTo(...gp(v));g.lineTo(...gp(x));g.stroke();}
+  g.strokeStyle='rgba(35,168,143,.95)';g.lineWidth=3;
+  for(const [v,P] of [[a,A],[b,B]])for(const x of N.get(v))if(x!==a&&x!==b){g.beginPath();g.moveTo(...P);g.lineTo(...gp(x));g.stroke();}
+  if(u<1){g.strokeStyle='rgba(226,96,58,.9)';g.beginPath();g.moveTo(...A);g.lineTo(...B);g.stroke();}
+  g.lineCap='butt';
+  const d=nbrs(h).get(a).size;
+  return {ids:[a,b],draw:()=>{if(u<1){node(g,...A,13,d,null);node(g,...B,13,d,null);}else node(g,...m,13,d,'rgba(35,168,143,.95)');}};}
 function render(now){
   g.setTransform(DPR*scale,0,0,DPR*scale,0,0);
   g.fillStyle='#f7f9fb';g.fillRect(0,0,W,H);
@@ -657,7 +671,7 @@ function render(now){
     for(const [v,[fx,fy]] of morph.from){const [tx,ty]=morph.to.get(v),p=pos.get(v);p.x=fx+(tx-fx)*e;p.y=fy+(ty-fy)*e;}
     if(u>=1&&!morph.done){morph.done=true;setTimeout(finish,250);}}
   else relax(gr,pos,1,300,280,72,drag&&drag.moved?drag.v:null);
-  const N=nbrs(gr),kind=nextKind(),candN=new Set(),candE=new Set();
+  const N=nbrs(gr),kind=nextKind(),candN=new Set(),candE=new Set();let fade=null;
   if(rule&&!won){if(kind==='node'){for(const v of gr.V)if(!picks.includes(v)&&ok(v))candN.add(v);}else for(const e of edgesOf(gr))if(ok(e))candE.add(key(...e));}
   for(const [a,b] of edgesOf(gr)){const p=pos.get(a),q=pos.get(b),hot=candE.has(key(a,b)),picked=picks.some(x=>Array.isArray(x)&&key(...x)===key(a,b));
     if(hot){g.strokeStyle='rgba(226,96,58,.25)';g.lineWidth=12;g.beginPath();g.moveTo(p.x,p.y);g.lineTo(q.x,q.y);g.stroke();}
@@ -669,23 +683,23 @@ function render(now){
     const c=at(kind,...hover),done=c!==null&&!(kind==='node'&&picks.includes(c))?completions(gr,rule,picks.concat([c])):[];
     if(done.length===1){const h=RULES[rule].apply(gr,done[0]),gp=v=>{const p=pos.get(v);return p?[p.x,p.y]:null;};
       let bp=null;if(h.born!==undefined){const nr=h.near.map(gp);bp=nr.length===1?[nr[0][0]+40,nr[0][1]-30]:[nr.reduce((s,p)=>s+p[0],0)/nr.length,nr.reduce((s,p)=>s+p[1],0)/nr.length];}
-      let mp=null;if(h.merged){const a=gp(h.merged[0]),b=gp(h.merged[1]);mp=[(a[0]+b[0])/2,(a[1]+b[1])/2];}
-      const at=v=>v===h.born?bp:(mp&&v===h.merged[0])?mp:gp(v);
+      if(h.merged)fade=previewContract(h,gp,now);else{
+      const at=v=>v===h.born?bp:gp(v);
       g.setLineDash([6,5]);g.lineWidth=3;
       for(const k of gr.E)if(!h.E.has(k)){const [a,b]=k.split('-').map(Number);g.strokeStyle='rgba(226,96,58,.9)';g.beginPath();g.moveTo(...gp(a));g.lineTo(...gp(b));g.stroke();
         const m=[(gp(a)[0]+gp(b)[0])/2,(gp(a)[1]+gp(b)[1])/2];g.setLineDash([]);g.lineWidth=2.5;g.beginPath();g.moveTo(m[0]-6,m[1]-6);g.lineTo(m[0]+6,m[1]+6);g.moveTo(m[0]+6,m[1]-6);g.lineTo(m[0]-6,m[1]+6);g.stroke();g.setLineDash([6,5]);g.lineWidth=3;}
       for(const k of h.E)if(!gr.E.has(k)){const [a,b]=k.split('-').map(Number);g.strokeStyle='rgba(35,168,143,.95)';g.beginPath();g.moveTo(...at(a));g.lineTo(...at(b));g.stroke();}
       g.setLineDash([]);
       if(bp){g.strokeStyle='rgba(35,168,143,.95)';g.lineWidth=2.5;g.setLineDash([4,4]);g.beginPath();g.arc(...bp,13,0,7);g.stroke();g.setLineDash([]);}
-      if(mp){g.strokeStyle='rgba(35,168,143,.95)';g.lineWidth=2.5;g.setLineDash([4,4]);g.beginPath();g.arc(...mp,13,0,7);g.stroke();g.setLineDash([]);}
-      for(const v of gr.V)if(!h.V.includes(v)&&!(h.merged&&v===h.merged[1])){const p=gp(v);g.strokeStyle='rgba(226,96,58,.9)';g.lineWidth=2.5;g.beginPath();g.moveTo(p[0]-8,p[1]-8);g.lineTo(p[0]+8,p[1]+8);g.moveTo(p[0]+8,p[1]-8);g.lineTo(p[0]-8,p[1]+8);g.stroke();}
-    }}
+      for(const v of gr.V)if(!h.V.includes(v)){const p=gp(v);g.strokeStyle='rgba(226,96,58,.9)';g.lineWidth=2.5;g.beginPath();g.moveTo(p[0]-8,p[1]-8);g.lineTo(p[0]+8,p[1]+8);g.moveTo(p[0]+8,p[1]-8);g.lineTo(p[0]-8,p[1]+8);g.stroke();}
+    }}}
   if(hint&&!won){const pulse=reduce?.6:.45+.35*Math.sin(now/180);g.strokeStyle=`rgba(240,169,42,${pulse})`;g.lineWidth=10;
     hint.forEach((x,i)=>{if(i<picks.length)return;if(Array.isArray(x)){const a=pos.get(x[0]),b=pos.get(x[1]);if(a&&b){g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();}}else{const p=pos.get(x);if(p){g.beginPath();g.arc(p.x,p.y,22,0,7);g.stroke();}}});
     if(RULES[rule].picks.length>2)hint.forEach((x,i)=>{if(i<picks.length||Array.isArray(x))return;const p=pos.get(x);if(p){g.font='700 13px Fredoka, system-ui, sans-serif';g.fillStyle='#b77500';g.textAlign='center';g.textBaseline='middle';g.fillText('abcd'[i],p.x-18,p.y-18);}});}
   for(const v of gr.V){const p=pos.get(v),pop=p.pop?Math.max(0,1-(now-p.pop)/350):0,r=13*(1+(reduce?0:.35*pop));
-    node(g,p.x,p.y,r,N.get(v).size,picks.includes(v)?'#e2603a':candN.has(v)?'rgba(226,96,58,.55)':null);
+    g.globalAlpha=fade&&fade.ids.includes(v)?.35:1;node(g,p.x,p.y,r,N.get(v).size,picks.includes(v)?'#e2603a':candN.has(v)?'rgba(226,96,58,.55)':null);
     const k=picks.indexOf(v);if(k>=0&&RULES[rule].picks.length>2){g.font='700 12px Fredoka, system-ui, sans-serif';g.fillStyle='#e2603a';g.textAlign='center';g.textBaseline='middle';g.fillText('abcd'[k],p.x+15,p.y-15);}}
+  g.globalAlpha=1;if(fade)fade.draw();
   parts=parts.filter(q=>now-q.t<1600);for(const q of parts){q.x+=q.vx;q.y+=q.vy;q.vy+=.18;q.vx*=.99;g.globalAlpha=Math.max(0,1-(now-q.t)/1600);g.fillStyle=q.c;g.beginPath();g.arc(q.x,q.y,q.r,0,7);g.fill();}g.globalAlpha=1;
   if(bad&&now-bad.t<350){g.strokeStyle=`rgba(226,96,58,${1-(now-bad.t)/350})`;g.lineWidth=2;g.beginPath();g.arc(bad.x,bad.y,12,0,7);g.stroke();}
   // target card
