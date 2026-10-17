@@ -466,10 +466,19 @@ try{worker=new Worker(URL.createObjectURL(new Blob([$('#sim').textContent,`;${jo
 function ask(m,cb){m.token=++jobs;waiting.set(m.token,[m,cb]);if(worker)worker.postMessage(m);else runLocal();}
 
 /* force layout */
+const ANG=3;// strength of the even-angles push in relax
 function relax(gg,P,iters,cx,cy,rest=72,pinned=null,board=true){
   const N=nbrs(gg);if(board)rest*=Math.max(1,Math.sqrt(gg.E.size/gg.V.length/1.2));
   for(let it=0;it<iters;it++){
-    for(const a of gg.V){const p=P.get(a);let fx=(cx-p.x)*.004,fy=(cy-p.y)*.004;
+    // spread the links around each node: neighbours closer than an even share of the circle are pushed apart sideways,
+    // so a leaf settles in the widest gap and points outwards; the node takes the opposite push and each push falls off with distance, so the graph neither drifts nor spins
+    const T=new Map(gg.V.map(v=>[v,[0,0]]));
+    for(const a of gg.V){const ns=[...N.get(a)];if(ns.length<2)continue;const p=P.get(a),even=2*Math.PI/ns.length;
+      const th=ns.map(b=>{const q=P.get(b);return [b,Math.atan2(q.y-p.y,q.x-p.x),Math.hypot(q.x-p.x,q.y-p.y)+1];}).sort((x,y)=>x[1]-y[1]);
+      th.forEach(([b,t,rb],i)=>{const [c,u,rc]=th[(i+1)%th.length],gap=((u-t)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);if(gap>=even)return;
+        const f=ANG*(even-gap)*rest,fb=[Math.sin(t)*f/rb,-Math.cos(t)*f/rb],fc=[-Math.sin(u)*f/rc,Math.cos(u)*f/rc],ta=T.get(a);
+        T.get(b)[0]+=fb[0];T.get(b)[1]+=fb[1];T.get(c)[0]+=fc[0];T.get(c)[1]+=fc[1];ta[0]-=fb[0]+fc[0];ta[1]-=fb[1]+fc[1];});}
+    for(const a of gg.V){const p=P.get(a);let fx=(cx-p.x)*.004+T.get(a)[0],fy=(cy-p.y)*.004+T.get(a)[1];
       for(const b of gg.V){if(a===b)continue;const q=P.get(b),dx=p.x-q.x,dy=p.y-q.y,d2=dx*dx+dy*dy+.01,d=Math.sqrt(d2);const f=2600/d2;fx+=dx/d*f;fy+=dy/d*f;}
       for(const b of N.get(a)){const q=P.get(b),dx=q.x-p.x,dy=q.y-p.y,d=Math.hypot(dx,dy)+.01,f=.05*(d-rest);fx+=dx/d*f;fy+=dy/d*f;}
       // keep nodes off links they are not part of, so a link never seems to pass through a node
@@ -481,7 +490,6 @@ function relax(gg,P,iters,cx,cy,rest=72,pinned=null,board=true){
       if(board){p.x=Math.max(24,Math.min(W-24,p.x));p.y=Math.max(24,Math.min(H-24,p.y));if(p.x>PANEL.x-14&&p.y<PANEL.y+PANEL.h+14){p.x-=1.5;p.y+=1.5;}}}
   }
 }
-function initPos(gg,cx,cy,r){const P=new Map();gg.V.forEach((v,i)=>{const a=-Math.PI/2+2*Math.PI*i/gg.V.length;P.set(v,{x:cx+r*Math.cos(a),y:cy+r*Math.sin(a),vx:0,vy:0});});return P;}
 /* links cross each other this many times in layout P */
 function crossings(gg,P){const E=edgesOf(gg);let n=0;
   for(let i=0;i<E.length;i++)for(let j=i+1;j<E.length;j++){const [a,b]=E[i],[c,d]=E[j];if(a===c||a===d||b===c||b===d)continue;
@@ -536,8 +544,7 @@ const load=i=>play(LEVELS[i],i);
 /* start a level: a campaign one (index i) or a Lab puzzle (i = -1) */
 function play(lvl,i){
   li=i;L=lvl;gr={next:L.start.next,V:L.start.V.slice(),E:new Set(L.start.E)};
-  pos=initPos(gr,300,280,90);
-  if(L.start.pos)L.start.V.forEach((v,i)=>{const [x,y]=L.start.pos[i];pos.set(v,{x:300+x*300,y:280+y*300,vx:0,vy:0});});
+  pos=new Map();for(const [v,[x,y]] of targetLayout(L.start,L.start.pos))pos.set(v,{x:300+x*300,y:280+y*300,vx:0,vy:0});
   relax(gr,pos,L.start.pos?40:300,300,280);
   tlay=targetLayout(L.target,L.target.pos);hist=[];movesN=0;hint=null;hintMsg='';rule=L.rules.length===1?L.rules[0]:null;picks=[];won=false;morph=null;dist=null;
   bestOf(L);ask({type:'map',L:{start:L.start,target:L.target,rules:L.rules,cap:capOf(L)}},r=>{if(lvl!==L)return;dist=r.dist;});
