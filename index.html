@@ -10,9 +10,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;700&display=swap" rel="stylesheet">
 <style>
 *,*::before,*::after{box-sizing:border-box}
-body{margin:0}
+html,body{margin:0;height:100%}
 [hidden]{display:none!important}
-/* Layout: a graph-paper lab bench with the target card pinned top right, rule cards and move count below. Single light lab look on purpose. */
+/* Layout: one screen, no page scroll. Header, the graph-paper bench (scaled to fit, target card pinned top right), one dock row of rules, hint, counts and buttons. Single light lab look on purpose. */
 :root{
   --bg:#e8eef3; --panel:#ffffff; --panel2:#f2f5f8; --ink:#1d2a3a; --muted:#6b7a8b; --line:#cfd8e1;
   --accent:#e2603a; --good:#23a88f;
@@ -20,19 +20,21 @@ body{margin:0}
   --f-body:"Nunito",system-ui,sans-serif;
   color-scheme:light;
 }
-body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px}
-.wrap{max-width:1000px;margin:0 auto;padding:18px 16px 36px;display:grid;gap:12px}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;overflow:hidden}
+.app{height:100vh;height:100dvh;max-width:1400px;margin:0 auto;padding:10px 16px 12px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px}
+.mid{min-height:0;min-width:0;display:grid;place-items:center}
 .top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
 .title{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;min-width:0}
-h1{font-family:var(--f-display);font-weight:700;font-size:30px;margin:0;letter-spacing:-.01em}
-#lvname{font-family:var(--f-display);font-weight:500;font-size:18px;color:var(--muted)}
+h1{font-family:var(--f-display);font-weight:700;font-size:26px;margin:0;letter-spacing:-.01em}
+#lvname{font-family:var(--f-display);font-weight:500;font-size:17px;color:var(--muted)}
 .levels{display:flex;gap:6px;align-items:center}
 #lvPick{min-width:150px;font-variant-numeric:tabular-nums}#lvPick small{color:var(--accent);margin-left:8px;font-size:13px}
 .lvgrid,.labp{position:absolute;inset:0;background:rgba(232,238,243,.97);padding:14px;overflow:auto}
-.lvgrid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;align-content:start}
-.lvgrid .lv{width:auto;height:44px}
-.lvgrid .ch{grid-column:1/-1;font-family:var(--f-display);font-weight:600;font-size:15px;margin:8px 2px 0;display:flex;gap:10px;align-items:baseline}
-.lvgrid .ch:first-child{margin-top:0}.lvgrid .ch small{color:var(--accent);font-size:12px}
+.lvgrid{display:grid;gap:7px;align-content:center}
+.chrow{display:grid;grid-template-columns:118px 1fr;gap:8px;align-items:center}
+.chrow .ch{font-family:var(--f-display);font-weight:600;font-size:14px;display:grid;line-height:1.15}.chrow .ch small{color:var(--accent);font-size:11px}
+.chrow .btns{display:grid;grid-template-columns:repeat(19,minmax(0,1fr));gap:4px}
+.lvgrid .lv{width:auto;padding:4px 0 3px;font-size:13px}.lvgrid .lv b{font-size:13px}.lvgrid .lv small{font-size:8px;letter-spacing:0}
 .labp{display:grid;place-content:center;gap:14px;text-align:center}
 .labp h2{font-family:var(--f-display);font-size:28px;margin:0}.labp p{margin:0;color:var(--muted)}
 .tiers{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
@@ -47,20 +49,18 @@ button.primary{background:var(--accent);color:#fff;box-shadow:0 3px 0 #a8401f}
 .lv{width:42px;padding:5px 0 4px;display:grid;justify-items:center;line-height:1.1}
 .lv b{font-size:15px}.lv small{font-size:10px;letter-spacing:1px;color:var(--accent)}
 .lv.cur{background:var(--ink);color:#fff;box-shadow:0 3px 0 #0b121b}.lv.cur small{color:#f0a92a}
-.stage{position:relative;border-radius:14px;overflow:hidden;border:2px solid var(--line);background:#f7f9fb}
-canvas#board{display:block;width:100%;aspect-ratio:8/5;max-width:100%;touch-action:none;cursor:pointer}
-.rules{display:flex;gap:8px;flex-wrap:wrap}
-.rule{display:grid;justify-items:center;gap:2px;padding:8px 10px 7px}
-.rule canvas{width:96px;height:38px}
+.stage{position:relative;border-radius:14px;overflow:hidden;border:2px solid var(--line);background:#f7f9fb;width:800px;height:500px}
+canvas#board{display:block;width:100%;height:100%;touch-action:none;cursor:pointer}
+.dock{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
+.rules{display:flex;gap:6px;flex-wrap:wrap}
+.rule{display:flex;align-items:center;gap:6px;padding:5px 10px 5px 6px}
+.rule canvas{width:70px;height:28px}
 .rule span{font-size:15px}.rule kbd{font-family:var(--f-display);font-size:11px;color:var(--muted);margin-left:5px}
 .rule.sel{box-shadow:0 0 0 3px var(--accent) inset,0 3px 0 #b9c5d1}
-.bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
-#hint{color:var(--muted);margin:0;min-width:0}
+#hint{color:var(--muted);margin:0;min-width:0;flex:1 1 220px;font-size:14px;line-height:1.3}
 #hint.warn{color:var(--accent);font-weight:700}
-.legend{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:13px;flex-wrap:wrap}
-.legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:3px;vertical-align:-1px}
 .stats{display:flex;gap:18px;font-family:var(--f-display);font-variant-numeric:tabular-nums}
-.stat{display:grid;line-height:1.1}.stat b{font-size:22px;font-weight:600}
+.stat{display:grid;line-height:1.1;text-align:center}.stat b{font-size:20px;font-weight:600}
 .stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 .group{display:flex;gap:6px;align-items:center}
 .overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(29,42,58,.35);padding:16px}
@@ -74,16 +74,16 @@ canvas#board{display:block;width:100%;aspect-ratio:8/5;max-width:100%;touch-acti
 .res .group{justify-content:center}
 @keyframes pop{0%{transform:scale(0) rotate(-40deg)}100%{transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.stars span.on{animation:none}}
-@media (max-width:560px){h1{font-size:24px}.rule canvas{width:72px;height:29px}.rule span{font-size:13px}}
+@media (max-width:560px){h1{font-size:20px}#lvname{font-size:14px}.rule canvas{width:52px;height:21px}.rule span{font-size:13px}.rule kbd{display:none}.chrow{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<div class="wrap">
+<div class="app">
   <div class="top">
     <div class="title"><h1>Rewrite Lab</h1><span id="lvname"></span></div>
     <div class="levels" id="levels"></div>
   </div>
-  <div class="stage">
+  <main class="mid" id="mid"><div class="stage" id="stage">
     <canvas id="board" width="800" height="500" aria-label="Graph board. Pick a rule, then click nodes or links where it applies."></canvas>
     <div class="lvgrid" id="lvgrid" hidden></div>
     <div class="labp" id="labp" hidden>
@@ -99,18 +99,13 @@ canvas#board{display:block;width:100%;aspect-ratio:8/5;max-width:100%;touch-acti
         <div class="group"><button id="ovRetry">Again</button><button class="primary" id="ovNext">Next</button></div>
       </div>
     </div>
-  </div>
-  <div class="rules" id="rules"></div>
-  <div class="bar">
+  </div></main>
+  <footer class="dock">
+    <div class="rules" id="rules"></div>
     <p id="hint"></p>
-    <div class="legend">Colour = links per node:
-      <span><i style="background:#3d8bd9"></i>1</span><span><i style="background:#23a88f"></i>2</span><span><i style="background:#f0a92a"></i>3</span><span><i style="background:#e2603a"></i>4</span><span><i style="background:#a957c4"></i>5</span>
-    </div>
-  </div>
-  <div class="bar">
     <div class="stats"><div class="stat"><b id="sMoves">0</b><span>moves</span></div><div class="stat"><b id="sBest">0</b><span>fewest</span></div></div>
     <div class="group"><button id="bHint">Hint</button><button id="bUndo">Undo</button><button id="bReset">Reset</button></div>
-  </div>
+  </footer>
 </div>
 
 <script id="sim">
@@ -170,6 +165,12 @@ const RULES={
     valid(g,p,c){const n=[...nbrs(g).get(c)];return n.length===3&&!has(g,n[0],n[1])&&!has(g,n[1],n[2])&&!has(g,n[0],n[2]);},
     apply(g,[a]){const h=clone(g),[x,y,z]=nbrs(g).get(a);h.V=h.V.filter(v=>v!==a);h.E=new Set([...h.E].filter(k=>!k.split('-').map(Number).includes(a)));for(const [p,q] of [[x,y],[y,z],[x,z]])h.E.add(key(p,q));return h;}},
 };
+/* every way to finish a move from the picks so far, one per distinct result (so a Star needs one click when its triangle is clear) */
+function completions(g,rid,picks){const R=RULES[rid],out=new Map();
+  const rec=p=>{if(p.length===R.picks.length){const h=R.apply(g,p),k=h.V.length+'|'+[...h.E].sort().join();if(!out.has(k))out.set(k,p.slice());return;}
+    const kind=R.picks[p.length];
+    for(const c of kind==='node'?g.V:edgesOf(g)){if(kind==='node'&&p.includes(c))continue;if(R.valid(g,p,c)){p.push(c);rec(p);p.pop();}}};
+  rec(picks.slice());return [...out.values()];}
 /* every complete application of a rule, for the solver */
 function moves(g,rid){const R=RULES[rid],out=[];
   const rec=p=>{if(p.length===R.picks.length){out.push(p.slice());return;}
@@ -246,6 +247,7 @@ const SH={
   W5:withPos(G(6,[[0,1],[1,2],[2,3],[3,4],[0,4],[0,5],[1,5],[2,5],[3,5],[4,5]]),[[0,-0.5],[0.476,-0.155],[0.294,0.405],[-0.294,0.405],[-0.476,-0.155],[0,0]]),
   W6:withPos(G(7,[[0,1],[1,2],[2,3],[3,4],[4,5],[0,5],[0,6],[1,6],[2,6],[3,6],[4,6],[5,6]]),[[0,-0.5],[0.433,-0.25],[0.433,0.25],[0,0.5],[-0.433,0.25],[-0.433,-0.25],[0,0]]),
   Wagner:withPos(G(8,[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[0,7],[0,4],[1,5],[2,6],[3,7]]),[[0,-0.5],[0.354,-0.354],[0.5,0],[0.354,0.354],[0,0.5],[-0.354,0.354],[-0.5,0],[-0.354,-0.354]]),
+  Grid3:withPos(G(9,[[0,1],[0,3],[1,2],[1,4],[2,5],[3,4],[3,6],[4,5],[4,7],[5,8],[6,7],[7,8]]),[[-0.3,-0.3],[0,-0.3],[0.3,-0.3],[-0.3,0],[0,0],[0.3,0],[-0.3,0.3],[0,0.3],[0.3,0.3]]),
 };
 const LEVELS=[
   {name:'Triangle',rules:['close'],start:path(3),target:cycle(3),tip:'Click the two blue ends to join them.'},
@@ -271,7 +273,7 @@ const LEVELS=[
   {name:'Sunlet',rules:['contract','split','close'],start:SH.Tadpole,target:SH.Sun3,best:5,cap:6},
   {name:'Helix',rules:['contract','split','close'],start:SH.C5,target:G(6,[[2,3],[0,3],[0,4],[0,2],[0,5],[1,5],[2,5]]),best:6,cap:6},
   {name:'Crystal',rules:['smooth','swap'],start:SH.TriChain,target:G(5,[[0,1],[1,2],[2,3],[1,3],[3,4],[0,3],[1,4]]),best:3,cap:8,tip:'Smooth takes out a two-link node and joins its neighbours.'},
-  {name:'Polymer',rules:['contract','split','close'],start:SH.P5,target:G(6,[[0,1],[2,4],[1,2],[1,3],[1,5],[4,5],[2,5]]),best:5,cap:6},
+  {name:'Polymer',rules:['smooth','sprout'],start:SH.Tree8,target:G(9,[[0,2],[0,3],[1,4],[1,5],[2,6],[0,1],[0,7],[0,8]]),best:3,cap:9},
   {name:'Vessel',rules:['swap','cut'],start:SH.K33,target:G(6,[[1,3],[1,5],[3,4],[0,3],[1,2]]),best:6,cap:7},
   {name:'Filament',rules:['contract','split','close'],start:SH.C4,target:G(5,[[0,2],[0,3],[0,4],[1,4],[0,1]]),best:6,cap:5},
   {name:'Prism shard',rules:['swap','contract','split'],start:SH.K5,target:G(6,[[0,4],[1,4],[0,1],[0,5],[2,5],[0,2],[1,3]]),best:6,cap:6},
@@ -280,8 +282,8 @@ const LEVELS=[
   {name:'Fractal',rules:['contract','split','close'],start:SH.House,target:G(6,[[0,2],[0,4],[3,4],[0,1],[0,3],[1,5],[2,5],[0,5],[1,2]]),best:5,cap:6},
   {name:'K2,4',rules:['close','cut'],start:SH.S5,target:SH.K24,best:5,cap:7},
   {name:'Spindle',rules:['contract','split','close'],start:SH.Bull,target:G(6,[[1,2],[1,4],[1,3],[0,5],[1,5],[0,1]]),best:5,cap:6},
-  {name:'K5',rules:['twin','contract'],start:SH.S4,target:SH.K5,best:6,cap:6,tip:'Twin copies a node with all its links, but not a link to itself.'},
-  {name:'Nucleus',rules:['twin','prune','cut'],start:SH.Triforce,target:G(7,[[0,1],[1,3],[2,3],[2,4],[0,4],[1,5],[2,5],[4,5],[1,6],[3,6],[4,6],[5,6]]),best:6,cap:7},
+  {name:'Mandala',rules:['twin','contract'],start:SH.S4,target:G(5,[[0,1],[0,2],[1,3],[2,3],[0,3],[1,4],[2,4],[3,4],[0,4]]),best:4,cap:6,tip:'Twin copies a node with all its links, but not a link to itself.'},
+  {name:'Nucleus',rules:['twin','contract'],start:SH.Triforce,target:G(7,[[0,1],[0,2],[1,3],[0,3],[1,4],[2,4],[3,4],[0,4],[0,5],[3,5],[4,5],[1,5],[0,6],[4,6]]),best:5,cap:7},
   {name:'Membrane',rules:['swap','close','cut'],start:SH.K33,target:G(6,[[1,3],[1,4],[1,5],[2,5],[0,3],[1,2]]),best:6,cap:7},
   {name:'Scaffold',rules:['twin','contract'],start:SH.W5,target:G(7,[[0,1],[2,3],[0,3],[0,2],[1,4],[3,4],[2,4],[1,5],[3,5],[2,5],[1,6],[3,6],[2,6]]),best:5,cap:7},
   {name:'Cluster',rules:['twin','contract'],start:SH.C5,target:G(6,[[0,1],[0,2],[0,3],[1,4],[3,4],[0,4],[1,3],[1,5],[2,5],[3,5],[4,5]]),best:7,cap:6},
@@ -292,8 +294,8 @@ const LEVELS=[
   {name:'Keystone',rules:['contract','split','close'],start:SH.Fan4,target:G(6,[[0,1],[2,3],[1,4],[1,3],[1,5],[2,5],[1,2],[3,5]]),best:6,cap:6},
   {name:'Junction',rules:['contract','split','close'],start:SH.Gem,target:G(6,[[1,3],[1,2],[1,4],[0,5],[1,5]]),best:6,cap:6},
   {name:'Big wheel',rules:['twin','prune','cut'],start:SH.Triforce,target:SH.W6,best:6,cap:7},
-  {name:'Relay',rules:['flip'],start:SH.P7,target:G(7,[[1,2],[4,5],[5,6],[0,2],[1,5],[0,5],[3,5],[4,6],[1,6],[0,6],[3,6],[0,1],[1,3],[0,3]]),best:5,cap:8,tip:'Flip toggles every link among the neighbours of one node.'},
-  {name:'Circuit',rules:['flip','swap'],start:SH.Domino,target:G(6,[[0,1],[1,2],[1,3],[1,5],[1,4],[0,2],[0,3],[0,5],[2,3],[2,5],[3,5]]),best:5,cap:7},
+  {name:'Relay',rules:['flip','swap'],start:SH.Gem,target:G(5,[[1,2],[2,3],[0,2],[2,4],[1,3],[0,1],[0,3]]),best:4,cap:6,tip:'Flip toggles every link among the neighbours of one node.'},
+  {name:'Circuit',rules:['flip'],start:SH.Grid3,target:G(9,[[1,4],[3,6],[4,5],[5,8],[6,7],[7,8],[1,3],[0,4],[2,4],[2,3],[1,5],[1,7],[5,7],[0,5],[0,7],[2,7],[3,4],[3,7]]),best:4,cap:10},
   {name:'Anchor',rules:['flip'],start:SH.P8,target:G(8,[[0,1],[5,6],[3,6],[1,6],[5,7],[3,7],[1,7],[3,4],[1,4],[1,2],[0,6],[0,7],[0,4],[0,2]]),best:6,cap:9},
   {name:'Trellis',rules:['flip','swap'],start:SH.Theta,target:G(6,[[0,1],[2,3],[0,5],[2,4],[1,2],[2,5]]),best:6,cap:7},
   {name:'Rigging',rules:['flip'],start:SH.C8,target:G(8,[[3,4],[6,7],[1,4],[3,5],[1,5],[5,7],[1,2],[4,6],[2,6],[0,6],[2,4],[0,4],[0,2]]),best:7,cap:9},
@@ -306,8 +308,8 @@ const LEVELS=[
   {name:'Kite tail',rules:['flip','contract'],start:SH.Tree7,target:G(6,[[0,2],[0,3],[1,2],[1,3],[0,4],[2,3],[4,5]]),best:7,cap:8},
   {name:'Dumbbell',rules:['flip'],start:SH.C7,target:G(7,[[4,5],[4,6],[2,5],[0,5],[2,6],[0,6],[2,3],[0,3],[0,1],[5,6],[3,6],[1,6]]),best:7,cap:8},
   {name:'Hourglass',rules:['flip','contract'],start:SH.W6,target:G(6,[[2,3],[3,4],[0,4],[0,5],[3,5],[0,2],[0,1],[4,5],[2,4],[2,5]]),best:6,cap:8},
-  {name:'K5 to path',rules:['star','contract'],start:SH.K5,target:SH.P5,best:8,cap:6,tip:'Star: click the three corners of a triangle.'},
-  {name:'Arrowhead',rules:['flip','twin','prune'],start:SH.Octa,target:G(7,[[0,1],[0,4],[1,2],[1,5],[2,3],[0,6],[2,6],[5,6],[1,6]]),best:8,cap:7},
+  {name:'Vertex',rules:['star','swap'],start:SH.Sun3,target:G(7,[[0,1],[3,6],[0,2],[5,6],[1,2],[4,6]]),best:4,cap:7,tip:'Star: click a corner of a triangle. One click is enough when the triangle is clear.'},
+  {name:'K3,4',rules:['star','swap'],start:SH.Octa,target:SH.K34,best:4,cap:7},
   {name:'Trident',rules:['flip','smooth','split'],start:SH.S4,target:G(6,[[0,3],[0,1],[0,4],[2,3],[1,2],[3,4],[3,5],[1,5],[4,5],[0,2]]),best:10,cap:6},
   {name:'Pendant',rules:['flip','contract'],start:SH.Lollipop,target:G(6,[[0,3],[0,5],[0,1],[3,5],[3,4],[1,4],[1,2]]),best:7,cap:8},
   {name:'Crown',rules:['flip','smooth','split'],start:SH.House,target:G(6,[[0,2],[2,3],[0,4],[1,4],[2,5],[4,5],[0,3],[0,5],[3,5]]),best:7,cap:6},
@@ -318,8 +320,8 @@ const LEVELS=[
   {name:'Star',rules:['flip','smooth','split'],start:SH.P5,target:SH.S4,best:8,cap:6},
   {name:'Lever',rules:['flip','contract'],start:SH.C7,target:G(6,[[1,2],[4,5],[0,2],[1,4],[0,4],[2,3],[0,1]]),best:7,cap:8},
   {name:'Hinge',rules:['flip','twin','prune'],start:SH.Mobius3,target:G(7,[[0,1],[1,3],[0,2],[1,4],[1,5],[2,5],[0,3],[0,5],[3,5],[1,6],[2,6],[3,6],[5,6]]),best:9,cap:7},
-  {name:'Pivot',rules:['star','fold','swap'],start:SH.Domino,target:G(7,[[0,5],[2,5],[4,5],[3,6],[4,6],[1,3],[5,6]]),best:6,cap:7,tip:'Fold turns a three-link node into a triangle.'},
-  {name:'Spark',rules:['star','fold','swap'],start:SH.Spider,target:G(7,[[2,6],[4,6],[5,6],[3,6],[0,3],[1,5]]),best:7,cap:8},
+  {name:'Arrowhead',rules:['fold','swap'],start:SH.Wagner,target:G(6,[[1,2],[2,3],[3,4],[4,5],[0,3],[1,5],[0,5],[2,5],[0,1],[0,4],[2,4],[0,2]]),best:3,cap:9,tip:'Fold turns a three-link node into a triangle.'},
+  {name:'Pivot',rules:['star','fold','swap'],start:SH.W4,target:G(6,[[0,2],[3,4],[2,3],[1,3],[2,5],[4,5],[0,1],[3,5]]),best:5,cap:6},
   {name:'Coil',rules:['star','fold','flip'],start:SH.P5,target:G(6,[[2,3],[0,4],[1,4],[2,4],[1,3],[0,3],[0,5],[1,5],[2,5],[3,4],[4,5],[3,5]]),best:9,cap:6},
   {name:'Weave',rules:['star','fold','swap'],start:SH.K33,target:G(7,[[1,3],[2,3],[2,5],[4,5],[3,5],[3,6],[4,6],[0,1],[5,6]]),best:8,cap:7},
   {name:'Knot',rules:['star','fold','flip'],start:SH.K23,target:G(6,[[3,4],[1,4],[0,2],[2,3],[1,5],[2,5],[0,3]]),best:9,cap:6},
@@ -403,14 +405,18 @@ function generate(tier,allowed,rnd=Math.random){const [lo,hi]=LAB[tier],pool=COM
     for(const [th,st] of cands){const a=inspect(M,th,rules,W);
       if(a.tiers&&!a.unused.length&&a.stuck<.75&&a.D>=lo&&a.D<hi)return {rules,start,target:st.g,best:a.B,cap,lab:tier,D:a.D};}}
   return null;}
-if(typeof module!=='undefined')module.exports={LEVELS,RULES,SH,moves,iso,hash,nbrs,edgesOf,key,G,capOf,explore,toTarget,walks,inspect,analyze,generate,COMBOS,LAB};
+if(typeof module!=='undefined')module.exports={LEVELS,RULES,SH,moves,completions,iso,hash,nbrs,edgesOf,key,G,capOf,explore,toTarget,walks,inspect,analyze,generate,COMBOS,LAB};
 </script>
 
 <script>
 /* ---------- game ---------- */
 const $=s=>document.querySelector(s);
 const cv=$('#board'),g=cv.getContext('2d'),W=800,H=500,DPR=Math.min(2,window.devicePixelRatio||1);
-cv.width=W*DPR;cv.height=H*DPR;
+/* the bench keeps 8:5 and fills the space between header and dock; the canvas draws at its real pixel size */
+let scale=1;
+function fit(){const m=$('#mid').getBoundingClientRect(),w=Math.max(280,Math.min(m.width,m.height*W/H)),st=$('#stage');
+  st.style.width=w+'px';st.style.height=w*H/W+'px';scale=w/W;cv.width=Math.round(w*DPR);cv.height=Math.round(w*H/W*DPR);}
+new ResizeObserver(fit).observe($('#mid'));fit();
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DEG=['#9aa5b1','#3d8bd9','#23a88f','#f0a92a','#e2603a','#a957c4','#5257d1'];
 const degCol=d=>DEG[Math.min(d,DEG.length-1)];
@@ -424,6 +430,8 @@ let li=0,dist=null,dead=false,parts=[],L,gr,pos,hist,movesN,rule=null,picks=[],w
 let save={stars:{},lab:{}};try{save=Object.assign(save,JSON.parse(localStorage.getItem('rewrite-save')||'{}'));}catch(e){}
 /* v2-v5 reordered later levels, so stars saved there belonged to other puzzles */
 if((save.v||1)<5){for(const k of Object.keys(save.stars))if(+k>=11&&k!=='12'&&k!=='14')delete save.stars[k];save.v=5;}
+/* v6 replaced each chapter's opening levels with gentler ones */
+if(save.v<6){for(const k of [22,31,32,43,44,57,58,69,70])delete save.stars[k];save.v=6;}
 function persist(){try{localStorage.setItem('rewrite-save',JSON.stringify(save));}catch(e){}}
 
 /* ---------- solver worker: level maps (instant hints, dead-end warnings) and Lab puzzles, off the main thread ---------- */
@@ -479,10 +487,10 @@ function buildLevels(){
   mk('▶',()=>load(Math.min(LEVELS.length-1,li+1)),'Next level').disabled=lab||li===LEVELS.length-1;
   mk('Lab',()=>toggle('#labp'),'Fresh puzzles, made on the spot','lab');
   const gEl=$('#lvgrid');gEl.innerHTML='';
-  CHAPTERS.forEach(([from,name],c)=>{const to=(CHAPTERS[c+1]?.[0]??LEVELS.length+1)-1,h=document.createElement('div');let got=0;for(let i=from-1;i<to;i++)got+=stars(i);
-    h.className='ch';h.innerHTML=`${name}<small>★ ${got}/${(to-from+1)*3}</small>`;gEl.appendChild(h);
+  CHAPTERS.forEach(([from,name],c)=>{const to=(CHAPTERS[c+1]?.[0]??LEVELS.length+1)-1,row=document.createElement('div'),btns=document.createElement('div');let got=0;for(let i=from-1;i<to;i++)got+=stars(i);
+    row.className='chrow';btns.className='btns';row.innerHTML=`<div class="ch">${name}<small>★ ${got}/${(to-from+1)*3}</small></div>`;row.appendChild(btns);gEl.appendChild(row);
     for(let i=from-1;i<to;i++){const b=document.createElement('button'),s=stars(i);b.className='lv'+(i===li?' cur':'');
-      b.innerHTML=`<b>${i+1}</b><small>${'★'.repeat(s)}${'·'.repeat(3-s)}</small>`;b.title=LEVELS[i].name;b.onclick=()=>load(i);gEl.appendChild(b);}});
+      b.innerHTML=`<b>${i+1}</b><small>${'★'.repeat(s)}${'·'.repeat(3-s)}</small>`;b.title=LEVELS[i].name;b.onclick=()=>load(i);btns.appendChild(b);}});
   const tEl=$('#tiers');tEl.innerHTML='';
   for(const [tier,blurb] of [['easy','Warm-up'],['medium','A real think'],['hard','Brain burner']]){const r=save.lab[tier]||{solved:0,perfect:0},b=document.createElement('button');
     b.innerHTML=`${tier[0].toUpperCase()+tier.slice(1)}<small>${blurb}</small><small>${r.solved} solved · ${r.perfect} perfect</small>`;b.onclick=()=>newLab(tier);tEl.appendChild(b);}
@@ -501,7 +509,7 @@ function buildRules(){
     const c=document.createElement('canvas');c.width=120;c.height=48;icon(c.getContext('2d'),rid);
     b.appendChild(c);const sp=document.createElement('span');sp.innerHTML=`${RULES[rid].name}<kbd>${i+1}</kbd>`;b.appendChild(sp);
     b.onclick=()=>pickRule(rid);el.appendChild(b);});
-  $('#hint').textContent=dead&&!hintMsg?'Dead end: the target can no longer be reached from here. Undo with Z.':hintMsg||(L.tip&&movesN===0?L.tip:rule?RULES[rule].hint+'.':'Pick a rule, then click where it applies.');
+  $('#hint').textContent=dead&&!hintMsg?'Dead end: the target can no longer be reached from here. Undo with Z.':hintMsg||(L.tip&&movesN===0?L.tip:rule?RULES[rule].hint+'.':'Pick a rule below, or click straight on the board when only one rule fits.');
   $('#hint').classList.toggle('warn',dead);
 }
 function pickRule(rid){rule=rule===rid?null:rid;picks=[];hint=null;hintMsg='';buildRules();}
@@ -553,18 +561,25 @@ function burst(){if(reduce)return;const t=performance.now();for(let k=0;k<70;k++
 
 /* picking */
 function pt(e){const r=cv.getBoundingClientRect();return [(e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H];}
-function nodeAt(x,y){let best=null,bd=20;for(const v of gr.V){const p=pos.get(v),d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;best=v;}}return best;}
-function edgeAt(x,y){let best=null,bd=9;for(const [a,b] of edgesOf(gr)){const p=pos.get(a),q=pos.get(b),ex=q.x-p.x,ey=q.y-p.y,l2=ex*ex+ey*ey||1,u=Math.max(0,Math.min(1,((x-p.x)*ex+(y-p.y)*ey)/l2)),d=Math.hypot(p.x+ex*u-x,p.y+ey*u-y);
+function nodeAt(x,y){let best=null,bd=26;for(const v of gr.V){const p=pos.get(v),d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;best=v;}}return best;}
+function edgeAt(x,y){let best=null,bd=14;for(const [a,b] of edgesOf(gr)){const p=pos.get(a),q=pos.get(b),ex=q.x-p.x,ey=q.y-p.y,l2=ex*ex+ey*ey||1,u=Math.max(0,Math.min(1,((x-p.x)*ex+(y-p.y)*ey)/l2)),d=Math.hypot(p.x+ex*u-x,p.y+ey*u-y);
   if(d<bd&&u>.12&&u<.88){bd=d;best=[a,b];}}return best;}
 const nextKind=()=>rule?RULES[rule].picks[picks.length]:null;
-const ok=c=>RULES[rule].valid(gr,picks,c);
+/* c may be picked next when some way to finish the move starts with it */
+const ok=c=>completions(gr,rule,picks.concat([c])).length>0;
+const at=(kind,x,y)=>kind==='node'?nodeAt(x,y):edgeAt(x,y);
 function click(x,y){
   if(won)return;
-  if(!rule){const v=nodeAt(x,y);if(v===null)flash(x,y);return;}
-  const kind=nextKind();
-  if(kind==='node'){const v=nodeAt(x,y);if(v===null||picks.includes(v)||!ok(v)){flash(x,y);return;}picks.push(v);}
-  else{const e=edgeAt(x,y);if(!e||!ok(e)){flash(x,y);return;}picks.push(e);}
-  if(picks.length===RULES[rule].picks.length)apply();
+  if(!rule){// no rule chosen yet: when only one of the level's rules can start here, use it
+    const fits=L.rules.filter(r=>{const c=at(RULES[r].picks[0],x,y);return c!==null&&completions(gr,r,[c]).length>0;});
+    if(fits.length!==1){flash(x,y);if(fits.length){hintMsg='More than one rule fits here. Pick one below.';buildRules();}return;}
+    rule=fits[0];hint=null;hintMsg='';buildRules();}
+  const kind=nextKind(),c=at(kind,x,y);
+  if(c===null||(kind==='node'&&picks.includes(c))){flash(x,y);return;}
+  const done=completions(gr,rule,picks.concat([c]));
+  if(!done.length){flash(x,y);return;}
+  picks.push(c);
+  if(done.length===1){picks=done[0];apply();}// only one way to finish: do it now
 }
 function flash(x,y){bad={x,y,t:performance.now()};}
 cv.addEventListener('pointerdown',e=>{const [x,y]=pt(e),v=nodeAt(x,y);drag={v,x0:x,y0:y,moved:false};cv.setPointerCapture(e.pointerId);});
@@ -586,7 +601,9 @@ $('#bUndo').onclick=undo;$('#bReset').onclick=restart;
 $('#ovRetry').onclick=restart;$('#ovNext').onclick=()=>li<0?newLab(L.lab):load(li+1);
 
 /* drawing */
-function node(c,x,y,r,d,ring){c.fillStyle='rgba(20,35,55,.15)';c.beginPath();c.arc(x+1.5,y+2.5,r,0,7);c.fill();c.fillStyle=degCol(d);c.beginPath();c.arc(x,y,r,0,7);c.fill();c.lineWidth=2.5;c.strokeStyle='#fff';c.stroke();
+/* a node shows its link count both as colour and as a digit */
+function node(c,x,y,r,d,ring){c.fillStyle='rgba(20,35,55,.15)';c.beginPath();c.arc(x+1.5,y+2.5,r,0,7);c.fill();c.fillStyle=degCol(d);c.beginPath();c.arc(x,y,r,0,7);c.fill();c.lineWidth=r>9?2.5:1.5;c.strokeStyle='#fff';c.stroke();
+  if(r>=6.5){c.fillStyle='#fff';c.font=`700 ${Math.round(r*1.15)}px Fredoka, system-ui, sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(d,x,y+r*.07);}
   if(ring){c.strokeStyle=ring;c.lineWidth=3;c.beginPath();c.arc(x,y,r+6,0,7);c.stroke();}}
 function icon(c,rid){
   c.clearRect(0,0,120,48);const ln=(a,b,col='#1d2a3a',w=2.5)=>{c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(...a);c.lineTo(...b);c.stroke();};
@@ -609,7 +626,7 @@ function icon(c,rid){
   };L2(D[rid]);
 }
 function render(now){
-  g.setTransform(DPR,0,0,DPR,0,0);
+  g.setTransform(DPR*scale,0,0,DPR*scale,0,0);
   g.fillStyle='#f7f9fb';g.fillRect(0,0,W,H);
   g.strokeStyle='#e3e9ef';g.lineWidth=1;for(let x=0;x<W;x+=25){g.beginPath();g.moveTo(x,0);g.lineTo(x,H);g.stroke();}for(let y=0;y<H;y+=25){g.beginPath();g.moveTo(0,y);g.lineTo(W,y);g.stroke();}
   // morph to the target's layout on a win
@@ -624,9 +641,10 @@ function render(now){
     g.strokeStyle=picked?'#e2603a':'#1d2a3a';g.lineWidth=picked?5:3.2;g.beginPath();g.moveTo(p.x,p.y);g.lineTo(q.x,q.y);g.stroke();}
   // preview line for close / swap while picking
   if(rule==='close'&&picks.length===1){const p=pos.get(picks[0]);for(const v of candN){const q=pos.get(v);g.setLineDash([5,6]);g.strokeStyle='rgba(226,96,58,.45)';g.lineWidth=2;g.beginPath();g.moveTo(p.x,p.y);g.lineTo(q.x,q.y);g.stroke();g.setLineDash([]);}}
-  if(rule&&!won&&hover&&!(drag&&drag.moved)&&picks.length===RULES[rule].picks.length-1){
-    const c=kind==='node'?nodeAt(...hover):edgeAt(...hover);
-    if(c!==null&&c!==undefined&&!(kind==='node'&&picks.includes(c))&&ok(c)){const h=RULES[rule].apply(gr,picks.concat([c])),gp=v=>{const p=pos.get(v);return p?[p.x,p.y]:null;};
+  // preview the result under the pointer whenever that click would finish the move
+  if(rule&&!won&&hover&&!(drag&&drag.moved)){
+    const c=at(kind,...hover),done=c!==null&&!(kind==='node'&&picks.includes(c))?completions(gr,rule,picks.concat([c])):[];
+    if(done.length===1){const h=RULES[rule].apply(gr,done[0]),gp=v=>{const p=pos.get(v);return p?[p.x,p.y]:null;};
       let bp=null;if(h.born!==undefined){const nr=h.near.map(gp);bp=nr.length===1?[nr[0][0]+40,nr[0][1]-30]:[nr.reduce((s,p)=>s+p[0],0)/nr.length,nr.reduce((s,p)=>s+p[1],0)/nr.length];}
       let mp=null;if(h.merged){const a=gp(h.merged[0]),b=gp(h.merged[1]);mp=[(a[0]+b[0])/2,(a[1]+b[1])/2];}
       const at=v=>v===h.born?bp:(mp&&v===h.merged[0])?mp:gp(v);
@@ -658,7 +676,7 @@ function render(now){
   g.strokeStyle='#e3e9ef';g.lineWidth=1;g.beginPath();g.moveTo(P.x+10,y0-12);g.lineTo(P.x+P.w-10,y0-12);g.stroke();
   const tight=degs.length>4;// five or more colours: smaller dots and digits so the row fits the card
   degs.forEach((d,i)=>{const x=P.x+(tight?20:28)+cw*i,a=cy.get(d)||0,b=ct.get(d)||0,good=a===b;
-    node(g,x-(tight?7:10),y0+4,tight?4.5:6,d);g.font=`600 ${tight?11:13}px Fredoka, system-ui, sans-serif`;g.textAlign='left';g.fillStyle=good?'#23a88f':'#1d2a3a';g.fillText(`${a}/${b}`,x-(tight?1:2),y0+4);});
+    node(g,x-(tight?8:11),y0+4,tight?6.5:7.5,d);g.font=`600 ${tight?11:13}px Fredoka, system-ui, sans-serif`;g.textAlign='left';g.fillStyle=good?'#23a88f':'#1d2a3a';g.fillText(`${a}/${b}`,x+(tight?0:1),y0+4);});
   const allOk=degs.every(d=>(cy.get(d)||0)===(ct.get(d)||0));
   g.font='600 11px Fredoka, system-ui, sans-serif';g.textAlign='left';g.fillStyle=allOk?'#23a88f':'#6b7a8b';g.fillText(allOk?'colours match ✓':'colour counts, you / target',P.x+12,y0+24);
   requestAnimationFrame(render);

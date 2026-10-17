@@ -20,6 +20,9 @@ Levels 1-11, 13 and 15 are the originals. The rest come from a solver search: fr
 ## How it plays
 
 - A worker maps each level when it opens: every shape that can still reach the target and how far it is. Hints read the next move straight off that map, and a move into a dead end is flagged at once.
+- Everything sits on one screen: the board scales to the window, rules, hint, counts and buttons share one dock row.
+- Clicking is forgiving: a move that can only finish one way happens on the first click (a Star often needs one click, not three), a click with no rule chosen uses the only rule that fits there, nodes show their link count as a digit, and hit areas are generous.
+- Each chapter opens with a short, easy level for its new rule, then a gentle practice level, before the curve climbs again.
 - **The Lab** mixes fresh puzzles on the spot (Easy, Medium, Hard) from the rules the player has met, under the same quality rules as the campaign.
 
 ## Tools
