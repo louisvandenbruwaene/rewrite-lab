@@ -460,8 +460,8 @@ function crossings(gg,P){const E=edgesOf(gg);let n=0;
     const p=P.get(a),q=P.get(b),r=P.get(c),s=P.get(d),o=(u,v,w)=>Math.sign((v.x-u.x)*(w.y-u.y)-(v.y-u.y)*(w.x-u.x));
     if(o(p,q,r)!==o(p,q,s)&&o(r,s,p)!==o(r,s,q))n++;}
   return n;}
-/* a few seeded starting orders, keep the relaxed layout with the fewest crossings; a level's own tpos wins */
-function targetLayout(t,tpos){if(tpos){const out=new Map();t.V.forEach((v,i)=>out.set(v,tpos[i]));return out;}
+/* a shape's classic drawing when it has one, else a few seeded starting orders, keeping the relaxed layout with the fewest crossings */
+function targetLayout(t,drawing){if(drawing){const out=new Map();t.V.forEach((v,i)=>out.set(v,drawing[i]));return out;}
   let P=null,best=Infinity,seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
   for(let k=0;k<40&&best>0;k++){const order=t.V.slice();if(k)for(let i=order.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
     const Q=new Map();order.forEach((v,i)=>{const a=-Math.PI/2+2*Math.PI*i/order.length;Q.set(v,{x:60*Math.cos(a),y:60*Math.sin(a),vx:0,vy:0});});
