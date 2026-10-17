@@ -28,8 +28,16 @@ h1{font-family:var(--f-display);font-weight:700;font-size:30px;margin:0;letter-s
 #lvname{font-family:var(--f-display);font-weight:500;font-size:18px;color:var(--muted)}
 .levels{display:flex;gap:6px;align-items:center}
 #lvPick{min-width:150px;font-variant-numeric:tabular-nums}#lvPick small{color:var(--accent);margin-left:8px;font-size:13px}
-.lvgrid{position:absolute;inset:0;background:rgba(232,238,243,.97);padding:14px;display:grid;grid-template-columns:repeat(10,1fr);grid-auto-rows:1fr;gap:6px;overflow:auto}
-.lvgrid .lv{width:auto}
+.lvgrid,.labp{position:absolute;inset:0;background:rgba(232,238,243,.97);padding:14px;overflow:auto}
+.lvgrid{display:grid;grid-template-columns:repeat(10,1fr);gap:6px;align-content:start}
+.lvgrid .lv{width:auto;height:44px}
+.lvgrid .ch{grid-column:1/-1;font-family:var(--f-display);font-weight:600;font-size:15px;margin:8px 2px 0;display:flex;gap:10px;align-items:baseline}
+.lvgrid .ch:first-child{margin-top:0}.lvgrid .ch small{color:var(--accent);font-size:12px}
+.labp{display:grid;place-content:center;gap:14px;text-align:center}
+.labp h2{font-family:var(--f-display);font-size:28px;margin:0}.labp p{margin:0;color:var(--muted)}
+.tiers{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.tiers button{display:grid;gap:2px;min-width:130px;padding:12px 16px}.tiers small{font-family:var(--f-body);font-weight:400;font-size:12px;color:var(--muted)}
+button.lab{background:var(--good);color:#fff;box-shadow:0 3px 0 #17796a}
 button{font-family:var(--f-display);font-size:16px;font-weight:600;border:0;border-radius:10px;padding:9px 14px;background:var(--panel);color:var(--ink);cursor:pointer;box-shadow:0 3px 0 #b9c5d1;transition:transform .06s}
 button:hover{filter:brightness(.97)}
 button:active{transform:translateY(2px);box-shadow:0 1px 0 #b9c5d1}
@@ -48,6 +56,7 @@ canvas#board{display:block;width:100%;aspect-ratio:8/5;max-width:100%;touch-acti
 .rule.sel{box-shadow:0 0 0 3px var(--accent) inset,0 3px 0 #b9c5d1}
 .bar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between}
 #hint{color:var(--muted);margin:0;min-width:0}
+#hint.warn{color:var(--accent);font-weight:700}
 .legend{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:13px;flex-wrap:wrap}
 .legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:3px;vertical-align:-1px}
 .stats{display:flex;gap:18px;font-family:var(--f-display);font-variant-numeric:tabular-nums}
@@ -77,6 +86,11 @@ canvas#board{display:block;width:100%;aspect-ratio:8/5;max-width:100%;touch-acti
   <div class="stage">
     <canvas id="board" width="800" height="500" aria-label="Graph board. Pick a rule, then click nodes or links where it applies."></canvas>
     <div class="lvgrid" id="lvgrid" hidden></div>
+    <div class="labp" id="labp" hidden>
+      <h2>The Lab</h2>
+      <p id="labMsg">Fresh puzzles, mixed for you on the spot. Same rules, endless shapes.</p>
+      <div class="tiers" id="tiers"></div>
+    </div>
     <div class="overlay" id="ov" hidden>
       <div class="res">
         <h2 id="ovTitle"></h2>
@@ -178,17 +192,8 @@ function iso(g,h){
       if(!ok)continue;map.set(v,w);used.add(w);if(rec(i+1))return true;map.delete(v);used.delete(w);}
     return false;};
   return rec(0)?map:null;}
-/* fewest moves from start to target with the level's rules (breadth-first over shapes) */
-function solve(start,target,rules,maxDepth=9,maxNodes=12){
-  const th=hash(target);if(hash(start)===th&&iso(start,target))return 0;
-  let frontier=[start],seen=new Set([hash(start)]);
-  for(let d=1;d<=maxDepth;d++){const nf=[];
-    for(const g of frontier)for(const r of rules)for(const p of moves(g,r)){const h=RULES[r].apply(g,p);if(h.V.length>maxNodes)continue;const k=hash(h);if(seen.has(k))continue;seen.add(k);
-      if(k===th&&iso(h,target))return d;nf.push(h);}
-    frontier=nf;if(!frontier.length)return -1;}
-  return -1;}
 const K4=G(4,[[0,1],[0,2],[0,3],[1,2],[1,3],[2,3]]),HOUSE=G(5,[[0,1],[1,2],[2,3],[3,0],[0,4],[1,4]]);
-/* named shapes for levels; pos is the classic drawing used on the target card and the starting board */
+/* named shapes for levels and Lab starts; pos is the classic drawing used on the target card and the starting board */
 const withPos=(g,pos)=>Object.assign(g,{pos});
 const SH={
   Bowtie:G(5,[[0,1],[1,2],[0,2],[0,3],[3,4],[0,4]]),
@@ -200,6 +205,7 @@ const SH={
   C7:withPos(G(7,[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[0,6]]),[[0,-0.5],[0.391,-0.312],[0.487,0.111],[0.217,0.45],[-0.217,0.45],[-0.487,0.111],[-0.391,-0.312]]),
   C8:withPos(G(8,[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[0,7]]),[[0,-0.5],[0.354,-0.354],[0.5,0],[0.354,0.354],[0,0.5],[-0.354,0.354],[-0.5,0],[-0.354,-0.354]]),
   Caterpillar:G(8,[[0,1],[1,2],[2,3],[0,4],[1,5],[2,6],[3,7]]),
+  Cube:withPos(G(8,[[0,1],[4,5],[0,4],[1,2],[5,6],[1,5],[2,3],[6,7],[2,6],[0,3],[4,7],[3,7]]),[[0.354,-0.354],[0.354,0.354],[-0.354,0.354],[-0.354,-0.354],[0.156,-0.156],[0.156,0.156],[-0.156,0.156],[-0.156,-0.156]]),
   Domino:withPos(G(6,[[0,3],[0,1],[3,4],[1,4],[1,2],[4,5],[2,5]]),[[-0.3,-0.15],[0,-0.15],[0.3,-0.15],[-0.3,0.15],[0,0.15],[0.3,0.15]]),
   DoubleStar:G(8,[[0,1],[0,2],[0,3],[0,4],[1,5],[1,6],[1,7]]),
   Envelope:G(5,[[0,1],[1,2],[2,3],[0,3],[0,4],[1,4],[0,2]]),
@@ -216,6 +222,7 @@ const SH={
   Lollipop:G(7,[[0,1],[0,2],[0,3],[1,2],[1,3],[2,3],[3,4],[4,5],[5,6]]),
   Mobius3:withPos(G(6,[[0,1],[1,2],[2,3],[3,4],[4,5],[0,5],[0,3],[1,4],[2,5]]),[[0,-0.5],[0.433,-0.25],[0.433,0.25],[0,0.5],[-0.433,0.25],[-0.433,-0.25]]),
   Octa:G(6,[[0,1],[0,2],[0,3],[0,4],[1,2],[2,3],[3,4],[1,4],[1,5],[2,5],[3,5],[4,5]]),
+  P4:G(4,[[0,1],[1,2],[2,3]]),
   P5:G(5,[[0,1],[1,2],[2,3],[3,4]]),
   P6:G(6,[[0,1],[1,2],[2,3],[3,4],[4,5]]),
   P7:G(7,[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6]]),
@@ -226,26 +233,20 @@ const SH={
   S5:G(6,[[0,1],[0,2],[0,3],[0,4],[0,5]]),
   Spider:G(7,[[0,1],[1,2],[0,3],[3,4],[0,5],[5,6]]),
   Sun3:withPos(G(6,[[0,1],[0,3],[1,2],[1,4],[0,2],[2,5]]),[[0,-0.25],[0.217,0.125],[-0.217,0.125],[0,-0.5],[0.433,0.25],[-0.433,0.25]]),
+  Sun4:withPos(G(8,[[0,1],[0,4],[1,2],[1,5],[2,3],[2,6],[0,3],[3,7]]),[[0,-0.25],[0.25,0],[0,0.25],[-0.25,0],[0,-0.5],[0.5,0],[0,0.5],[-0.5,0]]),
   Tadpole:G(5,[[0,1],[1,2],[0,2],[2,3],[3,4]]),
   Theta:G(6,[[0,1],[1,2],[2,3],[3,4],[4,5],[0,5],[0,3]]),
   Tree7:G(7,[[0,1],[0,2],[1,3],[1,4],[2,5],[2,6]]),
   Tree8:G(8,[[0,1],[0,2],[1,3],[1,4],[2,5],[2,6],[3,7]]),
   TriChain:G(7,[[0,1],[1,2],[0,2],[2,3],[3,4],[2,4],[4,5],[5,6],[4,6]]),
   Triforce:G(6,[[0,1],[1,2],[0,2],[0,3],[1,3],[1,4],[2,4],[2,5],[0,5]]),
+  TwoSq:G(8,[[0,1],[1,2],[2,3],[0,3],[4,5],[5,6],[6,7],[4,7]]),
   TwoTri:G(6,[[0,1],[1,2],[0,2],[3,4],[4,5],[3,5]]),
   W4:G(5,[[0,1],[1,2],[2,3],[0,3],[0,4],[1,4],[2,4],[3,4]]),
   W5:withPos(G(6,[[0,1],[1,2],[2,3],[3,4],[0,4],[0,5],[1,5],[2,5],[3,5],[4,5]]),[[0,-0.5],[0.476,-0.155],[0.294,0.405],[-0.294,0.405],[-0.476,-0.155],[0,0]]),
   W6:withPos(G(7,[[0,1],[1,2],[2,3],[3,4],[4,5],[0,5],[0,6],[1,6],[2,6],[3,6],[4,6],[5,6]]),[[0,-0.5],[0.433,-0.25],[0.433,0.25],[0,0.5],[-0.433,0.25],[-0.433,-0.25],[0,0]]),
   Wagner:withPos(G(8,[[0,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[0,7],[0,4],[1,5],[2,6],[3,7]]),[[0,-0.5],[0.354,-0.354],[0.5,0],[0.354,0.354],[0,0.5],[-0.354,0.354],[-0.5,0],[-0.354,-0.354]]),
 };
-function solvePath(start,target,rules,maxDepth=9,maxNodes=10){
-  if(iso(start,target))return [];
-  let frontier=[{g:start,path:[]}],seen=new Set([hash(start)]);
-  for(let d=1;d<=maxDepth;d++){const nf=[];
-    for(const s of frontier)for(const r of rules)for(const p of moves(s.g,r)){const h=RULES[r].apply(s.g,p);if(h.V.length>maxNodes)continue;const k=hash(h);if(seen.has(k))continue;seen.add(k);
-      const n={g:{next:h.next,V:h.V,E:h.E},path:s.path.concat([[r,p]])};if(iso(n.g,target))return n.path;nf.push(n);}
-    frontier=nf;if(!frontier.length)return null;}
-  return null;}
 const LEVELS=[
   {name:'Triangle',rules:['close'],start:path(3),target:cycle(3),tip:'Click the two blue ends to join them.'},
   {name:'Square',rules:['split'],start:cycle(3),target:cycle(4),tip:'Click a link to put a node in it.'},
@@ -258,102 +259,151 @@ const LEVELS=[
   {name:'Kite',rules:['sprout','close'],start:cycle(3),target:G(5,[[0,1],[1,2],[2,0],[0,3],[3,4]])},
   {name:'Two become one',rules:['swap'],start:G(6,[[0,1],[1,2],[2,0],[3,4],[4,5],[5,3]]),target:cycle(6),tip:'Swap: click a, b on one triangle, then c, d on the other.'},
   {name:'Bowtie',tip:'Cut removes one side of a triangle.',rules:['close','cut'],start:cycle(5),target:G(5,[[0,1],[1,2],[2,0],[0,3],[3,4],[4,0]])},
-  {name:'Wheel',rules:['sprout','close'],start:cycle(5),target:G(6,[[0,1],[1,2],[2,3],[3,4],[4,0],[5,0],[5,1],[5,2],[5,3],[5,4]])},
+  /* levels 12-100 (13 and 15 are originals): picked from a solver search along a rising, wavy difficulty curve; at most three optimal routes each; best = fewest moves, verified by node tools/check.cjs and tools/stars.cjs */
+  {name:'K2,3',rules:['close','cut'],start:SH.Bull,target:SH.K23,best:3,cap:6},
   {name:'Prism',rules:['close','swap','cut'],start:cycle(6),target:G(6,[[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[0,3],[1,4],[2,5]])},
-  {name:'Tree to ring',rules:['close','prune','cut'],start:G(6,[[0,1],[0,2],[0,3],[1,4],[2,5]]),target:cycle(5)},
+  {name:'Isomer',rules:['close','prune','cut'],start:SH.K23,target:G(4,[[0,3],[1,2],[1,3],[0,1]]),best:4,cap:6,tip:'Prune removes a leaf, a node with a single link.'},
   {name:'Three utilities',rules:['swap','close','cut'],start:cycle(6),target:SH.K33},
-  /* levels 16-100: picked from a solver search along a difficulty ramp; at most three optimal routes each; best = fewest moves, verified by node tools/check.cjs and tools/stars.cjs */
-  {name:'Big star',rules:['close','cut'],start:SH.K24,target:SH.S5,best:5,cap:7},
-  {name:'Isomer',rules:['smooth','close','cut'],start:SH.Sun3,target:G(4,[[0,3],[0,1],[0,2],[1,2]]),best:4,cap:7,tip:'Smooth takes out a two-link node and joins its neighbours.'},
-  {name:'Catalyst',rules:['swap','close','cut'],start:SH.TwoTri,target:G(6,[[1,2],[4,5],[3,5],[2,4],[0,5],[2,3],[2,5]]),best:5,cap:7},
+  {name:'Catalyst',rules:['contract','split','close'],start:SH.Bowtie,target:G(6,[[0,2],[2,3],[0,3],[0,4],[0,5],[1,5],[0,1]]),best:5,cap:6},
   {name:'Path',rules:['swap','cut'],start:SH.Mobius3,target:SH.P6,best:6,cap:7},
-  {name:'Lattice',rules:['swap','cut'],start:SH.K33,target:G(6,[[1,3],[1,5],[3,4],[0,3],[1,2]]),best:6,cap:7},
-  {name:'Helix',rules:['contract','split','close'],start:SH.Bowtie,target:G(6,[[0,2],[2,3],[0,3],[0,4],[0,5],[1,5],[0,1]]),best:5,cap:6},
-  {name:'Crystal',rules:['contract','split','close'],start:SH.P5,target:G(6,[[0,1],[2,4],[1,2],[1,3],[1,5],[4,5],[2,5]]),best:5,cap:6},
-  {name:'Polymer',rules:['contract','split','close'],start:SH.House,target:G(6,[[0,2],[0,4],[3,4],[0,1],[0,3],[1,5],[2,5],[0,5],[1,2]]),best:5,cap:6},
-  {name:'Vessel',rules:['contract','split','close'],start:SH.Bull,target:G(6,[[1,2],[1,4],[0,1],[1,3],[0,5],[4,5],[0,4],[1,5]]),best:5,cap:6},
+  {name:'Lattice',rules:['swap','close','cut'],start:SH.TwoTri,target:G(6,[[1,2],[4,5],[3,5],[2,4],[0,5],[2,3],[2,5]]),best:5,cap:7},
+  {name:'Big star',rules:['close','cut'],start:SH.K24,target:SH.S5,best:5,cap:7},
   {name:'Sunlet',rules:['contract','split','close'],start:SH.Tadpole,target:SH.Sun3,best:5,cap:6},
-  {name:'Utilities',rules:['twin','contract'],start:SH.K34,target:SH.K33,best:5,cap:8,tip:'Twin copies a node with all its links, but not a link to itself.'},
-  {name:'K2,4',rules:['close','cut'],start:SH.S5,target:SH.K24,best:5,cap:7},
-  {name:'K5',rules:['twin','contract'],start:SH.C5,target:SH.K5,best:6,cap:6},
-  {name:'Path to square',rules:['smooth','close','cut'],start:SH.P6,target:SH.C4,best:5,cap:7},
-  {name:'Filament',rules:['twin','contract'],start:SH.W5,target:G(7,[[0,1],[2,3],[0,3],[0,2],[1,4],[3,4],[2,4],[1,5],[3,5],[2,5],[1,6],[3,6],[2,6]]),best:5,cap:7},
+  {name:'Helix',rules:['contract','split','close'],start:SH.C5,target:G(6,[[2,3],[0,3],[0,4],[0,2],[0,5],[1,5],[2,5]]),best:6,cap:6},
+  {name:'Crystal',rules:['smooth','swap'],start:SH.TriChain,target:G(5,[[0,1],[1,2],[2,3],[1,3],[3,4],[0,3],[1,4]]),best:3,cap:8,tip:'Smooth takes out a two-link node and joins its neighbours.'},
+  {name:'Polymer',rules:['contract','split','close'],start:SH.P5,target:G(6,[[0,1],[2,4],[1,2],[1,3],[1,5],[4,5],[2,5]]),best:5,cap:6},
+  {name:'Vessel',rules:['swap','cut'],start:SH.K33,target:G(6,[[1,3],[1,5],[3,4],[0,3],[1,2]]),best:6,cap:7},
+  {name:'Filament',rules:['contract','split','close'],start:SH.C4,target:G(5,[[0,2],[0,3],[0,4],[1,4],[0,1]]),best:6,cap:5},
   {name:'Prism shard',rules:['swap','contract','split'],start:SH.K5,target:G(6,[[0,4],[1,4],[0,1],[0,5],[2,5],[0,2],[1,3]]),best:6,cap:6},
-  {name:'Reagent',rules:['contract','split','close'],start:SH.K4,target:G(5,[[0,2],[0,3],[0,4],[1,4],[0,1]]),best:7,cap:5},
-  {name:'Compound',rules:['contract','split','close'],start:SH.Envelope,target:G(6,[[0,2],[0,3],[0,1],[0,4],[1,5],[2,5],[0,5]]),best:5,cap:6},
-  {name:'Fractal',rules:['twin','prune','cut'],start:SH.Triforce,target:G(7,[[0,1],[1,3],[2,3],[2,4],[0,4],[1,5],[2,5],[4,5],[1,6],[3,6],[4,6],[5,6]]),best:6,cap:7},
-  {name:'K4',rules:['flip','twin','prune'],start:SH.W4,target:SH.K4,best:5,cap:6,tip:'Flip toggles every link among the neighbours of one node.'},
-  {name:'Spindle',rules:['flip','swap'],start:SH.Theta,target:G(6,[[0,1],[1,3],[1,5],[1,2],[1,4],[0,3]]),best:5,cap:7},
-  {name:'Nucleus',rules:['flip','swap'],start:SH.Domino,target:G(6,[[0,1],[1,2],[1,3],[1,5],[1,4],[0,2],[0,3],[0,5],[2,3],[2,5],[3,5]]),best:5,cap:7},
-  {name:'Membrane',rules:['flip'],start:SH.P8,target:G(8,[[1,2],[5,6],[6,7],[0,2],[4,6],[1,6],[0,6],[3,6],[5,7],[4,7],[1,7],[0,7],[3,7],[1,4],[0,4],[3,4]]),best:6,cap:9},
-  {name:'Scaffold',rules:['flip','cut','close'],start:SH.C6,target:G(6,[[4,5],[0,2],[1,3],[0,3],[0,5]]),best:6,cap:7},
-  {name:'Cluster',rules:['flip'],start:SH.C7,target:G(7,[[4,5],[4,6],[2,5],[0,5],[2,6],[0,6],[2,3],[0,3],[0,1],[5,6],[3,6],[1,6]]),best:7,cap:8},
-  {name:'Lantern',rules:['flip','smooth','split'],start:SH.Fan4,target:G(6,[[0,1],[1,2],[0,2],[3,4],[1,5],[4,5],[3,5]]),best:6,cap:6},
-  {name:'Antenna',rules:['flip','smooth','split'],start:SH.Tadpole,target:G(6,[[1,2],[0,2],[1,3],[0,3],[2,4],[3,4],[2,5],[3,5],[2,3]]),best:6,cap:6},
+  {name:'Reagent',rules:['contract','split','close'],start:SH.Envelope,target:G(6,[[0,2],[0,3],[0,1],[0,4],[1,5],[2,5],[0,5]]),best:5,cap:6},
+  {name:'Compound',rules:['contract','split','close'],start:SH.W4,target:G(6,[[1,3],[0,4],[2,4],[0,5],[3,5],[0,3]]),best:6,cap:6},
+  {name:'Fractal',rules:['contract','split','close'],start:SH.House,target:G(6,[[0,2],[0,4],[3,4],[0,1],[0,3],[1,5],[2,5],[0,5],[1,2]]),best:5,cap:6},
+  {name:'K2,4',rules:['close','cut'],start:SH.S5,target:SH.K24,best:5,cap:7},
+  {name:'Spindle',rules:['contract','split','close'],start:SH.Bull,target:G(6,[[1,2],[1,4],[1,3],[0,5],[1,5],[0,1]]),best:5,cap:6},
+  {name:'K5',rules:['twin','contract'],start:SH.S4,target:SH.K5,best:6,cap:6,tip:'Twin copies a node with all its links, but not a link to itself.'},
+  {name:'Nucleus',rules:['twin','prune','cut'],start:SH.Triforce,target:G(7,[[0,1],[1,3],[2,3],[2,4],[0,4],[1,5],[2,5],[4,5],[1,6],[3,6],[4,6],[5,6]]),best:6,cap:7},
+  {name:'Membrane',rules:['swap','close','cut'],start:SH.K33,target:G(6,[[1,3],[1,4],[1,5],[2,5],[0,3],[1,2]]),best:6,cap:7},
+  {name:'Scaffold',rules:['twin','contract'],start:SH.W5,target:G(7,[[0,1],[2,3],[0,3],[0,2],[1,4],[3,4],[2,4],[1,5],[3,5],[2,5],[1,6],[3,6],[2,6]]),best:5,cap:7},
+  {name:'Cluster',rules:['twin','contract'],start:SH.C5,target:G(6,[[0,1],[0,2],[0,3],[1,4],[3,4],[0,4],[1,3],[1,5],[2,5],[3,5],[4,5]]),best:7,cap:6},
+  {name:'Lantern',rules:['twin','contract'],start:SH.Prism,target:G(7,[[0,2],[0,1],[2,3],[1,3],[2,4],[1,4],[0,5],[1,5],[4,5],[2,5],[0,4],[2,6],[1,6]]),best:5,cap:7},
+  {name:'Antenna',rules:['close','cut'],start:SH.C6,target:G(6,[[0,1],[1,2],[3,4],[4,5],[0,2],[0,3],[3,5]]),best:5,cap:7},
+  {name:'Harness',rules:['contract','split','close'],start:SH.K23,target:G(6,[[0,3],[0,4],[1,4],[0,1],[0,5],[2,5],[1,5],[4,5]]),best:6,cap:6},
+  {name:'Bracket',rules:['twin','prune','cut'],start:SH.Sun3,target:G(7,[[1,2],[2,3],[1,4],[2,4],[0,5],[4,5],[2,6],[5,6]]),best:8,cap:7},
+  {name:'Keystone',rules:['contract','split','close'],start:SH.Fan4,target:G(6,[[0,1],[2,3],[1,4],[1,3],[1,5],[2,5],[1,2],[3,5]]),best:6,cap:6},
+  {name:'Junction',rules:['contract','split','close'],start:SH.Gem,target:G(6,[[1,3],[1,2],[1,4],[0,5],[1,5]]),best:6,cap:6},
+  {name:'Big wheel',rules:['twin','prune','cut'],start:SH.Triforce,target:SH.W6,best:6,cap:7},
+  {name:'Relay',rules:['flip'],start:SH.P7,target:G(7,[[1,2],[4,5],[5,6],[0,2],[1,5],[0,5],[3,5],[4,6],[1,6],[0,6],[3,6],[0,1],[1,3],[0,3]]),best:5,cap:8,tip:'Flip toggles every link among the neighbours of one node.'},
+  {name:'Circuit',rules:['flip','swap'],start:SH.Domino,target:G(6,[[0,1],[1,2],[1,3],[1,5],[1,4],[0,2],[0,3],[0,5],[2,3],[2,5],[3,5]]),best:5,cap:7},
+  {name:'Anchor',rules:['flip'],start:SH.P8,target:G(8,[[0,1],[5,6],[3,6],[1,6],[5,7],[3,7],[1,7],[3,4],[1,4],[1,2],[0,6],[0,7],[0,4],[0,2]]),best:6,cap:9},
+  {name:'Trellis',rules:['flip','swap'],start:SH.Theta,target:G(6,[[0,1],[2,3],[0,5],[2,4],[1,2],[2,5]]),best:6,cap:7},
+  {name:'Rigging',rules:['flip'],start:SH.C8,target:G(8,[[3,4],[6,7],[1,4],[3,5],[1,5],[5,7],[1,2],[4,6],[2,6],[0,6],[2,4],[0,4],[0,2]]),best:7,cap:9},
+  {name:'Bridge',rules:['flip','smooth','split'],start:SH.Tadpole,target:G(6,[[1,2],[0,2],[1,3],[0,3],[2,4],[3,4],[2,5],[3,5],[2,3]]),best:6,cap:6},
+  {name:'Pylon',rules:['flip','twin','prune'],start:SH.K5,target:G(6,[[0,1],[1,2],[0,3],[1,4],[0,2],[1,5],[3,5],[2,5]]),best:8,cap:6},
+  {name:'Gantry',rules:['flip','swap'],start:SH.Octa,target:G(6,[[0,2],[0,4],[0,5],[0,1],[0,3],[2,4],[2,5],[1,2],[4,5],[1,4]]),best:7,cap:7},
   {name:'Octahedron',rules:['flip','swap'],start:SH.C6,target:SH.Octa,best:6,cap:7},
-  {name:'Harness',rules:['flip','smooth','split'],start:SH.K23,target:G(6,[[0,1],[2,3],[0,4],[2,4],[0,5],[2,5],[1,4],[1,5],[4,5]]),best:7,cap:6},
+  {name:'Arbor',rules:['flip','smooth','split'],start:SH.Gem,target:G(6,[[1,3],[3,4],[0,1],[1,2],[1,5],[0,3]]),best:7,cap:6},
+  {name:'Spider',rules:['flip','twin','prune'],start:SH.Sun3,target:SH.Spider,best:7,cap:7},
+  {name:'Kite tail',rules:['flip','contract'],start:SH.Tree7,target:G(6,[[0,2],[0,3],[1,2],[1,3],[0,4],[2,3],[4,5]]),best:7,cap:8},
+  {name:'Dumbbell',rules:['flip'],start:SH.C7,target:G(7,[[4,5],[4,6],[2,5],[0,5],[2,6],[0,6],[2,3],[0,3],[0,1],[5,6],[3,6],[1,6]]),best:7,cap:8},
+  {name:'Hourglass',rules:['flip','contract'],start:SH.W6,target:G(6,[[2,3],[3,4],[0,4],[0,5],[3,5],[0,2],[0,1],[4,5],[2,4],[2,5]]),best:6,cap:8},
   {name:'K5 to path',rules:['star','contract'],start:SH.K5,target:SH.P5,best:8,cap:6,tip:'Star: click the three corners of a triangle.'},
-  {name:'Hexagon',rules:['flip','split','prune'],start:SH.S4,target:SH.C6,best:6,cap:6},
-  {name:'Bracket',rules:['flip','swap'],start:SH.Octa,target:G(6,[[0,1],[1,5],[1,2],[0,3],[4,5],[1,3]]),best:7,cap:7},
-  {name:'Fan',rules:['flip','contract'],start:SH.Butterfly2,target:SH.Fan4,best:7,cap:8},
-  {name:'Keystone',rules:['flip'],start:SH.C8,target:G(8,[[4,5],[2,5],[0,5],[5,7],[4,6],[2,6],[0,6],[2,3],[0,3],[3,7],[0,1],[1,7]]),best:7,cap:9},
-  {name:'Junction',rules:['flip','smooth','split'],start:SH.House,target:G(6,[[0,2],[0,3],[0,4],[0,5],[0,1],[2,5],[1,2],[3,5],[1,3],[4,5],[1,4]]),best:7,cap:6},
-  {name:'Relay',rules:['flip','swap'],start:SH.Triforce,target:G(6,[[0,1],[1,4],[1,2],[1,5],[0,3],[3,4]]),best:6,cap:7},
-  {name:'Circuit',rules:['flip','contract'],start:SH.Tree7,target:G(6,[[0,1],[0,2],[4,5],[2,3],[0,4],[1,2]]),best:7,cap:8},
-  {name:'Anchor',rules:['flip','contract'],start:SH.W6,target:G(6,[[2,3],[3,4],[0,4],[0,5],[3,5],[0,2],[0,1],[4,5],[2,4],[2,5]]),best:6,cap:8},
-  {name:'Trellis',rules:['flip','smooth','split'],start:SH.Gem,target:G(6,[[1,3],[3,4],[0,1],[1,2],[1,5],[0,3]]),best:7,cap:6},
-  {name:'Sunlet to house',rules:['star','fold','swap'],start:SH.Sun3,target:SH.House,best:6,cap:7,tip:'Fold turns a three-link node into a triangle.'},
-  {name:'Rigging',rules:['flip','twin','smooth','cut'],start:SH.S4,target:G(6,[[0,2],[0,3],[1,4],[0,4],[1,5],[3,5],[4,5],[2,3]]),best:6,cap:6},
-  {name:'Bridge',rules:['flip','prune'],start:SH.Tree8,target:G(7,[[0,2],[3,6],[2,3],[0,4],[0,5],[3,4],[3,5],[1,3],[2,6],[4,6],[5,6],[1,6]]),best:5,cap:9},
-  {name:'Pylon',rules:['flip','prune'],start:SH.Caterpillar,target:G(6,[[2,3],[0,4],[0,3],[2,5],[0,5],[0,1],[3,4],[4,5],[1,4]]),best:6,cap:9},
-  {name:'K2,3',rules:['fold','swap'],start:SH.Spider,target:SH.K23,best:6,cap:8},
-  {name:'Gantry',rules:['star','fold'],start:SH.Wagner,target:G(8,[[1,2],[2,3],[1,4],[0,5],[3,4],[3,6],[5,6],[4,6],[2,6],[0,7],[2,7],[4,7]]),best:8,cap:9},
-  {name:'Arbor',rules:['contract','split','close'],start:SH.W4,target:G(6,[[1,3],[0,4],[2,4],[3,4],[0,5],[3,5]]),best:6,cap:6},
-  {name:'Bowtie to pentagon',rules:['star','fold','flip'],start:SH.Bowtie,target:SH.C5,best:8,cap:6},
-  {name:'Kite tail',rules:['star','fold','swap'],start:SH.P7,target:G(5,[[3,4],[1,3],[1,2],[2,3],[0,3],[0,2]]),best:8,cap:8},
-  {name:'Bull to claw',rules:['star','fold','flip'],start:SH.Bull,target:SH.S3,best:8,cap:6},
-  {name:'Claw to bowtie',rules:['star','fold','flip'],start:SH.S3,target:SH.Bowtie,best:11,cap:5},
-  {name:'Dumbbell',rules:['star','fold','swap'],start:SH.Theta,target:G(7,[[3,5],[4,5],[0,6],[2,6],[5,6],[0,2],[1,5]]),best:7,cap:7},
-  {name:'Hourglass',rules:['star','fold','swap'],start:SH.Domino,target:G(7,[[2,5],[4,5],[3,5],[1,6],[5,6],[0,6],[3,4]]),best:7,cap:7},
-  {name:'Arrowhead',rules:['flip'],start:SH.C8,target:G(8,[[5,6],[5,7],[4,6],[3,6],[2,6],[1,6],[0,6],[3,7],[1,7],[3,4],[2,4],[1,4],[0,4],[1,2],[0,2]]),best:7,cap:9},
-  {name:'Trident',rules:['star','fold','swap'],start:SH.K24,target:G(6,[[0,5],[1,5],[0,4],[0,3],[1,3],[1,2],[0,2],[0,1]]),best:7,cap:7},
-  {name:'Pendant',rules:['flip','twin','prune'],start:SH.Octa,target:G(7,[[0,1],[0,4],[1,2],[1,5],[2,3],[0,6],[2,6],[5,6],[1,6]]),best:8,cap:7},
-  {name:'Crown',rules:['flip','contract'],start:SH.Lollipop,target:G(6,[[0,3],[0,5],[0,1],[3,5],[3,4],[1,4],[1,2]]),best:7,cap:8},
-  {name:'Comet',rules:['star','fold','swap'],start:SH.Spider,target:G(7,[[2,6],[4,6],[5,6],[3,6],[0,3],[1,5]]),best:7,cap:8},
-  {name:'Tadpole kit',rules:['contract','split','close'],start:SH.C5,target:G(6,[[2,3],[0,3],[0,4],[0,2],[0,5],[1,5],[2,5],[3,5]]),best:7,cap:6},
-  {name:'Swing',rules:['twin','prune','cut'],start:SH.Sun3,target:G(7,[[1,2],[2,3],[1,4],[2,4],[0,5],[4,5],[2,6],[5,6]]),best:8,cap:7},
-  {name:'Sail',rules:['flip','contract'],start:SH.DoubleStar,target:G(6,[[1,4],[2,4],[1,5],[2,5],[2,3],[0,4],[0,5],[1,2]]),best:9,cap:9},
-  {name:'Lever',rules:['star','contract'],start:SH.K34,target:G(6,[[0,2],[0,3],[1,5],[0,4],[0,5]]),best:9,cap:8},
-  {name:'Hinge',rules:['flip','smooth','split'],start:SH.S4,target:G(6,[[0,3],[0,1],[0,4],[2,3],[1,2],[3,4],[3,5],[1,5],[4,5],[0,2]]),best:10,cap:6},
-  {name:'Pivot',rules:['star','fold','flip'],start:SH.K23,target:G(6,[[3,4],[1,4],[0,2],[2,3],[1,5],[2,5],[0,3]]),best:9,cap:6},
-  {name:'Spark',rules:['star','fold','flip'],start:SH.P5,target:G(6,[[2,3],[0,4],[1,4],[2,4],[1,3],[0,3],[0,5],[1,5],[2,5],[3,4],[4,5],[3,5]]),best:9,cap:6},
-  {name:'Coil',rules:['flip','contract'],start:SH.C7,target:G(6,[[1,2],[4,5],[0,2],[1,4],[0,4],[2,3],[0,1]]),best:7,cap:8},
-  {name:'Triangle chain to fan',rules:['flip','contract'],start:SH.TriChain,target:SH.Fan5,best:7,cap:8},
-  {name:'Weave',rules:['flip','twin','prune'],start:SH.S5,target:G(7,[[1,4],[2,4],[3,4],[1,5],[2,5],[3,5],[0,5],[1,2],[1,3],[2,3],[0,6]]),best:9,cap:7},
-  {name:'Knot',rules:['flip','twin','prune'],start:SH.K24,target:G(7,[[1,3],[2,3],[3,4],[0,1],[2,4],[1,6],[2,6],[4,6],[3,6],[0,5]]),best:9,cap:7},
+  {name:'Arrowhead',rules:['flip','twin','prune'],start:SH.Octa,target:G(7,[[0,1],[0,4],[1,2],[1,5],[2,3],[0,6],[2,6],[5,6],[1,6]]),best:8,cap:7},
+  {name:'Trident',rules:['flip','smooth','split'],start:SH.S4,target:G(6,[[0,3],[0,1],[0,4],[2,3],[1,2],[3,4],[3,5],[1,5],[4,5],[0,2]]),best:10,cap:6},
+  {name:'Pendant',rules:['flip','contract'],start:SH.Lollipop,target:G(6,[[0,3],[0,5],[0,1],[3,5],[3,4],[1,4],[1,2]]),best:7,cap:8},
+  {name:'Crown',rules:['flip','smooth','split'],start:SH.House,target:G(6,[[0,2],[2,3],[0,4],[1,4],[2,5],[4,5],[0,3],[0,5],[3,5]]),best:7,cap:6},
+  {name:'Comet',rules:['flip','swap'],start:SH.K24,target:G(6,[[0,2],[2,5],[2,4],[1,2],[2,3],[0,5],[4,5],[1,5],[3,5],[1,4],[3,4],[1,3]]),best:7,cap:7},
+  {name:'Tadpole kit',rules:['flip','prune'],start:SH.Caterpillar,target:G(6,[[2,3],[0,4],[0,3],[2,5],[0,5],[0,1],[3,4],[4,5],[1,4]]),best:6,cap:9},
+  {name:'Swing',rules:['flip','twin','prune'],start:SH.S5,target:G(7,[[1,4],[2,4],[3,4],[1,5],[2,5],[3,5],[0,5],[1,2],[1,3],[2,3],[0,6]]),best:9,cap:7},
+  {name:'Sail',rules:['flip','contract'],start:SH.DoubleStar,target:G(6,[[2,4],[3,4],[2,5],[3,5],[1,2],[1,3],[0,4],[0,5],[2,3],[4,5]]),best:9,cap:9},
   {name:'Star',rules:['flip','smooth','split'],start:SH.P5,target:SH.S4,best:8,cap:6},
-  {name:'Braid',rules:['star','fold','swap'],start:SH.Mobius3,target:G(7,[[2,3],[1,3],[2,5],[4,5],[3,5],[3,6],[4,6],[0,1],[5,6]]),best:8,cap:7},
-  {name:'Tangle',rules:['star','fold','swap'],start:SH.K33,target:G(7,[[2,3],[1,5],[2,5],[4,5],[3,5],[3,6],[4,6],[0,3],[1,6]]),best:8,cap:7},
-  {name:'Lens',rules:['flip','twin','prune'],start:SH.K33,target:G(7,[[0,2],[2,3],[0,1],[2,4],[2,5],[1,5],[0,3],[0,5],[3,5],[2,6],[1,6],[3,6],[5,6]]),best:9,cap:7},
-  {name:'Beacon',rules:['twin','prune','cut'],start:SH.Sun3,target:G(7,[[2,3],[1,4],[0,5],[2,5],[4,5],[0,6],[3,6],[5,6]]),best:9,cap:7},
+  {name:'Lever',rules:['flip','contract'],start:SH.C7,target:G(6,[[1,2],[4,5],[0,2],[1,4],[0,4],[2,3],[0,1]]),best:7,cap:8},
+  {name:'Hinge',rules:['flip','twin','prune'],start:SH.Mobius3,target:G(7,[[0,1],[1,3],[0,2],[1,4],[1,5],[2,5],[0,3],[0,5],[3,5],[1,6],[2,6],[3,6],[5,6]]),best:9,cap:7},
+  {name:'Pivot',rules:['star','fold','swap'],start:SH.Domino,target:G(7,[[0,5],[2,5],[4,5],[3,6],[4,6],[1,3],[5,6]]),best:6,cap:7,tip:'Fold turns a three-link node into a triangle.'},
+  {name:'Spark',rules:['star','fold','swap'],start:SH.Spider,target:G(7,[[2,6],[4,6],[5,6],[3,6],[0,3],[1,5]]),best:7,cap:8},
+  {name:'Coil',rules:['star','fold','flip'],start:SH.P5,target:G(6,[[2,3],[0,4],[1,4],[2,4],[1,3],[0,3],[0,5],[1,5],[2,5],[3,4],[4,5],[3,5]]),best:9,cap:6},
+  {name:'Weave',rules:['star','fold','swap'],start:SH.K33,target:G(7,[[1,3],[2,3],[2,5],[4,5],[3,5],[3,6],[4,6],[0,1],[5,6]]),best:8,cap:7},
+  {name:'Knot',rules:['star','fold','flip'],start:SH.K23,target:G(6,[[3,4],[1,4],[0,2],[2,3],[1,5],[2,5],[0,3]]),best:9,cap:6},
+  {name:'Braid',rules:['star','fold','swap'],start:SH.Octa,target:G(7,[[1,2],[2,3],[1,4],[2,4],[2,5],[1,5],[1,3],[3,4],[4,5],[0,6],[3,6],[5,6]]),best:7,cap:7},
+  {name:'Tangle',rules:['star','fold','swap'],start:SH.Theta,target:G(7,[[3,5],[4,5],[0,6],[2,6],[5,6],[0,2],[1,5]]),best:7,cap:7},
+  {name:'Lens',rules:['star','fold'],start:SH.Wagner,target:G(8,[[1,2],[2,3],[1,4],[0,5],[3,4],[3,6],[5,6],[4,6],[2,6],[0,7],[2,7],[4,7]]),best:8,cap:9},
+  {name:'Beacon',rules:['star','fold','swap'],start:SH.Mobius3,target:G(7,[[2,3],[1,5],[2,5],[4,5],[3,5],[3,6],[4,6],[0,3],[1,6]]),best:8,cap:7},
   {name:'Shard',rules:['star','fold','swap'],start:SH.Prism,target:G(7,[[1,5],[2,5],[4,5],[3,5],[0,5],[1,2],[0,6],[3,6],[4,6]]),best:8,cap:7},
   {name:'Fork',rules:['flip','twin','prune'],start:SH.K24,target:G(7,[[0,3],[2,3],[0,1],[2,4],[0,5],[2,5],[0,6],[2,6],[3,6]]),best:9,cap:7},
-  {name:'Wishbone',rules:['star','fold','swap'],start:SH.Octa,target:G(7,[[2,3],[1,4],[2,4],[2,5],[1,5],[1,3],[3,4],[4,5],[3,6],[5,6],[0,1],[2,6]]),best:8,cap:7},
-  {name:'Hammock',rules:['flip','twin','prune'],start:SH.Mobius3,target:G(7,[[1,2],[1,3],[2,4],[2,5],[3,5],[1,5],[0,4],[0,6]]),best:10,cap:7},
-  {name:'Snare',rules:['star','fold','swap'],start:SH.Tree7,target:G(7,[[1,6],[3,6],[4,5],[5,6],[0,4],[2,6]]),best:9,cap:8},
-  {name:'Clasp',rules:['flip','smooth','split'],start:SH.K5,target:G(6,[[0,1],[2,4],[2,3],[0,4],[0,5],[2,5],[1,4],[1,5],[3,4],[3,5]]),best:11,cap:6},
-  {name:'Buckle',rules:['star','fold','flip'],start:SH.House,target:G(6,[[1,4],[1,3],[0,4],[0,3],[0,5],[1,5],[2,5],[0,2],[1,2]]),best:10,cap:6},
-  {name:'Wedge',rules:['star','fold','flip'],start:SH.Envelope,target:G(6,[[0,4],[0,2],[1,5],[3,5],[4,5],[2,5],[1,3],[1,4],[1,2],[3,4],[2,3],[2,4]]),best:10,cap:6},
-  {name:'Ridge',rules:['star','fold','flip'],start:SH.Fan4,target:G(6,[[1,4],[3,4],[1,5],[0,1],[1,2],[3,5],[0,3],[2,3],[0,5],[2,5],[0,2]]),best:10,cap:6},
-  {name:'Cradle',rules:['star','fold','flip'],start:SH.Gem,target:G(6,[[1,4],[2,4],[1,5],[2,5],[3,4],[3,5],[0,1],[1,2],[0,2],[0,3],[4,5]]),best:10,cap:6},
-  {name:'Tether',rules:['star','fold','swap'],start:SH.C7,target:G(8,[[4,6],[5,6],[3,6],[0,6],[1,7],[2,7],[3,7]]),best:10,cap:8},
-  {name:'Grand finale',rules:['flip','twin','prune'],start:SH.Octa,target:SH.Spider,best:9,cap:7},
+  {name:'Wishbone',rules:['star','fold','swap'],start:SH.Tree7,target:G(7,[[1,6],[3,6],[4,5],[5,6],[0,4],[2,6]]),best:9,cap:8},
+  {name:'Bull',rules:['star','fold','flip'],start:SH.S3,target:SH.Bull,best:10,cap:5},
+  {name:'Fan',rules:['flip','contract'],start:SH.TriChain,target:SH.Fan5,best:7,cap:8},
+  {name:'Hammock',rules:['flip','smooth','split'],start:SH.K23,target:G(6,[[0,1],[2,3],[0,4],[2,4],[0,5],[2,5],[1,4],[1,5],[3,4],[3,5]]),best:8,cap:6},
+  {name:'Snare',rules:['star','fold','flip'],start:SH.House,target:G(6,[[3,4],[1,3],[3,5],[0,3],[2,3],[4,5],[0,4],[2,4],[1,5],[0,1],[1,2]]),best:10,cap:6},
+  {name:'Clasp',rules:['star','fold','flip'],start:SH.Fan4,target:G(6,[[1,4],[2,4],[1,5],[2,5],[3,4],[3,5],[0,1],[1,2],[0,2],[0,3],[4,5]]),best:10,cap:6},
+  {name:'Buckle',rules:['flip','twin','prune'],start:SH.K33,target:G(7,[[0,1],[0,4],[3,4],[2,4],[1,6],[4,6],[0,3],[0,6],[3,6],[2,5]]),best:10,cap:7},
+  {name:'Wedge',rules:['flip','swap'],start:SH.Triforce,target:G(6,[[0,1],[1,3],[4,5],[0,2],[1,4]]),best:6,cap:7},
+  {name:'Ridge',rules:['flip'],start:SH.C8,target:G(8,[[5,6],[5,7],[4,6],[3,6],[2,6],[1,6],[0,6],[3,7],[1,7],[3,4],[2,4],[1,4],[0,4],[1,2],[0,2]]),best:7,cap:9},
+  {name:'Cradle',rules:['flip','smooth','split'],start:SH.K5,target:G(6,[[0,1],[1,3],[1,4],[0,5],[0,2],[2,4],[3,4],[1,5]]),best:9,cap:6},
+  {name:'Tether',rules:['star','fold','flip'],start:SH.C5,target:G(6,[[1,2],[1,3],[2,4],[3,4],[0,5],[2,5],[3,5],[0,2],[0,3]]),best:11,cap:6},
+  {name:'Spire',rules:['star','fold','swap'],start:SH.C7,target:G(8,[[4,6],[5,6],[3,6],[0,6],[1,7],[2,7],[3,7]]),best:10,cap:8},
+  {name:'Stencil',rules:['star','fold','swap'],start:SH.K24,target:G(7,[[0,3],[0,5],[0,1],[0,4],[0,2],[2,6],[4,6],[5,6]]),best:9,cap:7},
+  {name:'Cipher',rules:['twin','prune','cut'],start:SH.Sun3,target:G(7,[[2,3],[1,4],[0,5],[2,5],[4,5],[0,6],[3,6],[5,6]]),best:9,cap:7},
+  {name:'Glyph',rules:['flip','twin','prune'],start:SH.S5,target:G(7,[[0,1],[0,2],[0,3],[1,4],[2,4],[3,4],[0,5],[0,6],[1,5],[2,5],[3,5]]),best:10,cap:7},
+  {name:'Totem',rules:['flip','contract'],start:SH.Lollipop,target:G(6,[[1,3],[1,5],[4,5],[0,1],[1,2],[0,4],[3,5],[1,4]]),best:7,cap:8},
+  {name:'Emblem',rules:['twin','prune','cut'],start:SH.Sun3,target:G(7,[[0,2],[2,3],[1,4],[0,5],[4,5],[0,6],[3,6],[5,6]]),best:9,cap:7},
+  {name:'Sigil',rules:['star','fold','swap'],start:SH.Octa,target:G(7,[[2,3],[1,4],[2,4],[2,5],[1,5],[1,3],[3,4],[4,5],[3,6],[5,6],[0,1],[2,6]]),best:8,cap:7},
+  {name:'Rune',rules:['flip','twin','prune'],start:SH.Mobius3,target:G(7,[[1,2],[2,4],[0,3],[2,5],[0,1],[0,4],[1,6]]),best:10,cap:7},
+  {name:'Grand finale',rules:['flip','twin','prune'],start:SH.K24,target:G(7,[[0,3],[2,3],[0,1],[2,4],[0,5],[2,5],[3,6],[0,2]]),best:10,cap:7},
 ];
 /* the solver never grows a shape past cap nodes: the level's own, else one more than the bigger of start and target */
 const capOf=L=>L.cap??Math.max(L.start.V.length,L.target.V.length)+1;
-/* levels with a stored cap have few enough reachable shapes to search them all */
-const depthOf=L=>L.cap?30:Math.max(9,(L.best||0)+4);
-if(typeof module!=='undefined')module.exports={LEVELS,RULES,moves,iso,hash,solve,solvePath,nbrs,edgesOf,key,G,capOf,depthOf};
+
+/* ---------- level maps: every shape reachable from a start, kept by isomorphism class ---------- */
+/* explore: hash -> {g, d: fewest moves from start, n: optimal routes to it, out: [[hash, rule]] (clicks giving the same shape count once)} */
+function explore(start,rules,cap,limit=60000){
+  const S=new Map(),s0=hash(start);S.set(s0,{g:start,d:0,n:1});let layer=[s0],full=true;
+  const expand=k=>{const st=S.get(k);st.out=[];const seen=new Set();
+    for(const r of rules)for(const p of moves(st.g,r)){const h=RULES[r].apply(st.g,p);if(h.V.length>cap)continue;const v=hash(h);if(seen.has(v))continue;seen.add(v);
+      if(!S.has(v))S.set(v,{g:{next:h.next,V:h.V,E:h.E},d:Infinity,n:0});st.out.push([v,r]);}
+    return st.out;};
+  for(let d=1;layer.length;d++){const nl=[];
+    for(const u of layer){const su=S.get(u);for(const [v] of expand(u)){const sv=S.get(v);if(sv.d===Infinity){sv.d=d;nl.push(v);}if(sv.d===d)sv.n+=su.n;}}
+    layer=nl;if(S.size>limit&&layer.length){full=false;break;}}
+  return {S,s0,full};}
+/* moves still needed from each shape to the target; shapes missing from the map are dead ends */
+function toTarget(M,th){const rev=new Map();
+  for(const [u,st] of M.S)for(const [v] of st.out||[]){if(!rev.has(v))rev.set(v,[]);rev.get(v).push(u);}
+  const D=new Map([[th,0]]),q=[th];for(let i=0;i<q.length;i++)for(const u of rev.get(q[i])||[])if(!D.has(u)){D.set(u,D.get(q[i])+1);q.push(u);}
+  return D;}
+/* W[k]: number of k-move sequences (in shapes) ending at each shape */
+function walks(M,K){const W=[new Map([[M.s0,1]])];
+  for(let k=1;k<=K;k++){const N=new Map();for(const [u,c] of W[k-1])for(const [v] of M.S.get(u).out||[])N.set(v,(N.get(v)||0)+c);W.push(N);}
+  return W;}
+/* how a target plays: star tiers (a solution of exactly best..best+4 moves), routes, precision (chance that random play
+   hits the target in best moves, lower = more thinking), rules on some optimal route, share of dead-end shapes near the start */
+function inspect(M,th,rules,W){const B=M.S.get(th).d,exact=[];let all=0;
+  for(let k=B;k<=B+4;k++)exact.push(W[k].has(th));for(const c of W[B].values())all+=c;
+  const on=new Set([th]),used=new Set();
+  for(let d=B;d>0;d--)for(const [u,st] of M.S)if(st.d===d-1)for(const [v,r] of st.out||[])if(on.has(v)&&M.S.get(v).d===d){on.add(u);used.add(r);}
+  const D=toTarget(M,th);let near=0,dead=0;for(const [k,st] of M.S)if(st.d<=B&&st.out){near++;if(!D.has(k))dead++;}
+  const routes=M.S.get(th).n,precision=routes/all;
+  return {B,exact,routes,precision,unused:rules.filter(r=>!used.has(r)),stuck:dead/near,
+    tiers:exact[0]&&(exact[1]||exact[2])&&(exact[3]||exact[4]),D:-Math.log10(precision)+0.3*B};}
+/* a level's full analysis, or null when its target is out of reach */
+function analyze(L){const M=explore(L.start,L.rules,capOf(L)),th=hash(L.target),st=M.S.get(th);
+  if(!st||st.d===Infinity||!iso(st.g,L.target))return null;return {...inspect(M,th,L.rules,walks(M,st.d+4)),full:M.full};}
+
+/* ---------- Lab: fresh puzzles from a start and rule set known to hold good ones ---------- */
+const connected=g=>{const N=nbrs(g),s=new Set([g.V[0]]),q=[g.V[0]];while(q.length){const v=q.pop();for(const w of N.get(v))if(!s.has(w)){s.add(w);q.push(w);}}return s.size===g.V.length;};
+const LAB={easy:[3,4.8],medium:[4.8,6.5],hard:[6.5,9.5]};
+/* COMBOS: [rules, start shape, lowest and highest difficulty of the good targets it holds] */
+const COMBOS=[["swap","K34",1.9,2.38],["flip+smooth+split","S3",3.1,4.58],["flip+smooth+split","S4",7.11,9.77],["flip+smooth+split","K4",3.12,4.86],["flip+smooth+split","K23",5.12,8],["flip+smooth+split","W4",6.43,8.38],["flip+smooth+split","House",6.34,8.28],["flip+smooth+split","Gem",5.92,6.59],["flip+smooth+split","Tadpole",5.96,7.43],["flip","C8",6.26,6.74],["flip","P6",2.31,3.76],["flip","P7",4.27,4.57],["flip","Tree8",3.13,3.61],["flip","Lollipop",3.13,3.61],["flip","Triforce",2.01,2.94],["flip","TriChain",4.11,4.59],["flip","W6",3.33,4.34],["flip","Sun4",1.75,2.24],["flip","Spider",1.71,2.77],["flip","Butterfly2",1.71,2.77],["flip","Domino",2.04,3.14],["flip","Theta",2.04,3.14],["flip+swap","K24",6.19,6.67],["flip+swap","TwoTri",5.38,7.29],["flip+swap","W5",1.98,3.34],["flip+swap","Domino",5.55,6.67],["flip+swap","Envelope",2.13,3.33],["flip+swap","Fan4",2.13,3.33],["star+fold+swap","C6",5.1,8.04],["star+fold+swap","P6",3.57,5.77],["star+fold+swap","P7",6.45,8.66],["star+fold+swap","K23",2.69,5.65],["star+fold+swap","K24",6.26,10.09],["star+fold+swap","Prism",7.87,9.04],["star+fold+swap","Tree7",5.04,8.38],["star+fold+swap","Triforce",6.53,6.83],["star+fold+swap","TwoTri",4.69,7.64],["star+fold+swap","W4",2.28,4.56],["star+fold+swap","Sun3",5.22,7.21],["star+fold+swap","House",2.33,5.31],["star+fold+swap","Bowtie",2.13,7.16],["star+fold+swap","Domino",5.86,7.73],["star+fold+swap","Envelope",2.6,4.94],["star+fold+swap","Gem",2.6,4.94],["star+fold+swap","Fan4",2.6,4.94],["flip+split+prune","S4",4.77,5.07],["flip+split+prune","K5",4.87,6.44],["flip+split+prune","K23",4.8,4.98],["twin+prune+cut","Bull",4.14,5.67],["close+cut","P6",2.74,3.58],["close+cut","S4",2.45,3.34],["close+cut","S5",3.77,4.25],["close+cut","K23",2.33,3.21],["close+cut","K24",3.63,4.77],["close+cut","Prism",3.58,3.76],["close+cut","Theta",3.66,4.14],["close+cut","Tadpole",2.16,3.04],["swap+cut","K33",3.74,4.7],["swap+cut","Prism",3.44,4.4],["swap+cut","Butterfly2",2.17,3.87],["swap+cut","Mobius3",3.74,4.7],["swap+cut","Domino",2.45,3.35],["contract+sprout","S4",1.8,1.98],["contract+sprout","K5",1.75,1.75],["contract+sprout","Prism",2.6,2.6],["contract+sprout","Tree7",2.6,2.78],["contract+sprout","Tree8",3.15,3.32],["contract+sprout","Caterpillar",3,3.17],["contract+sprout","TriChain",2.99,2.99],["contract+sprout","W4",2.24,2.41],["contract+sprout","W5",2.67,2.67],["contract+sprout","Spider",2.35,2.52],["contract+sprout","House",2.54,2.71],["contract+sprout","Bowtie",2.12,2.3],["contract+sprout","Domino",2.68,2.68],["contract+sprout","Theta",2.68,2.68],["contract+sprout","Gem",2.5,2.67],["contract+sprout","Fan4",2.5,2.67],["contract+sprout","Fan5",2.85,3.02],["swap+close+cut","C6",3.68,4.15],["flip+contract","C6",3.52,4.49],["flip+contract","K24",2.19,2.82],["flip+contract","Prism",2.33,3.2],["flip+contract","DoubleStar",7.08,8.93],["flip+contract","Tree7",6.48,8.22],["flip+contract","TriChain",7.25,8.27],["flip+contract","Octa",2.43,3.32],["flip+contract","W5",2.69,3.54],["flip+contract","W6",6.49,7.25],["flip+contract","Fan5",3,4.3],["twin+contract","C5",3.7,5.03],["twin+contract","P4",1.9,3.56],["twin+contract","P5",3.84,4.79],["twin+contract","K23",1.75,2.22],["twin+contract","House",2.9,4.28],["twin+contract","Envelope",2.89,4.12],["twin+contract","Gem",2.89,4.12],["twin+contract","Bull",2.96,4.19],["swap+contract+split","K23",2.82,3.83],["flip+prune","K24",2.58,3.98],["flip+prune","K33",2.37,3.04],["flip+prune","K34",2.86,4.08],["flip+prune","Tree7",2.93,3.95],["flip+prune","Tree8",4.74,5.22],["flip+prune","Caterpillar",4.67,5.62],["flip+prune","Octa",2.83,3.61],["flip+prune","Sun4",3.49,4.11],["flip+prune","Mobius3",2.37,3.04],["star+fold","Lollipop",2.24,3.8],["star+fold","Mobius3",1.38,3.73],["fold+swap","K34",2.42,3.52],["fold+swap","Cube",2.38,4.99],["fold+swap","Tree7",2.32,3.16],["fold+swap","Tree8",4.54,4.84],["fold+swap","Lollipop",3.35,4.64],["fold+swap","Sun4",3.92,4.95],["fold+swap","Spider",3.78,6.7],["smooth+sprout","C4",1.38,1.38],["smooth+sprout","P6",2.01,2.19],["smooth+sprout","K23",1.8,1.8],["smooth+sprout","K24",1.8,1.8],["smooth+sprout","Tree7",2.01,2.01],["smooth+sprout","House",1.72,1.9],["flip+twin+prune","K4",3.08,4.32],["flip+twin+prune","K33",7.71,8.7],["flip+twin+prune","Octa",6.87,8.2],["flip+twin+prune","Sun3",5.9,6.95],["flip+cut+close","K23",2.26,2.73],["flip+cut+close","K24",4.09,4.84],["flip+cut+close","K33",4,5.25],["flip+cut+close","Sun3",4.09,5.35],["contract+split+close","C5",5.61,7],["contract+split+close","P4",2.48,4.18],["contract+split+close","P5",4.62,6.19],["contract+split+close","K4",3.84,5.47],["contract+split+close","K5",7.27,8.34],["contract+split+close","W4",6.05,7.43],["contract+split+close","Bowtie",5.09,6.17],["contract+split+close","Envelope",5.59,7.27],["contract+split+close","Tadpole",5.31,6.1],["star+fold+flip","C5",8.65,8.83],["star+fold+flip","S3",5.28,6.59],["star+fold+flip","K4",4.85,6.17],["star+fold+flip","House",8.35,8.53],["star+fold+flip","Bowtie",5.97,7.74],["star+fold+flip","Envelope",8.65,8.82],["star+fold+flip","Bull",5.61,6.79],["flip+smooth+split","P5",6.32,7.59],["flip+smooth+split","Bowtie",6.63,8.1],["flip+smooth+split","Bull",6.25,8.36],["flip","C6",2.01,2.88],["flip","Caterpillar",3.21,3.76],["flip+swap","C6",6.05,6.87],["flip+swap","Octa",6.06,8.24],["flip+swap","Gem",2.13,3.33],["star+fold+swap","K33",7.68,8.84],["star+fold+swap","Octa",7.05,9.35],["star+fold+swap","Mobius3",7.68,8.84],["star+fold+swap","Bull",2.18,3.83],["flip+split+prune","K4",2.46,3.74],["close+cut","C6",3.12,4.28],["close+cut","Domino",3.66,4.14],["contract+sprout","K4",1.75,1.75],["contract+sprout","Tadpole",2.43,2.6],["flip+contract","P6",4.48,6.34],["flip+contract","Triforce",3.01,3.99],["twin+contract","C4",1.6,2.97],["twin+contract","Fan4",2.89,4.12],["twin+contract","Tadpole",2.93,3.71],["sprout+close+cut","House",2.95,3.43],["flip+prune","K23",1.9,3.26],["flip+prune","W4",2.08,2.55],["flip+twin+prune","K23",4.51,5.4],["flip+twin+prune","W4",4.5,5.91],["flip+twin+prune","Mobius3",7.71,8.7],["flip+cut+close","C6",4.74,5.86],["contract+split+close","Fan4",5.59,7.27],["star+fold+flip","Tadpole",5.76,6.93],["flip+smooth+split","K5",6.68,9.34],["flip+smooth+split","Envelope",5.92,6.59],["flip","C7",4.99,5.9],["flip","Wagner",2.2,3.25],["flip","Bowtie",1.68,1.98],["flip","Fan5",2.24,2.72],["star+fold+swap","C7",7.88,12.59],["star+fold+swap","Theta",5.86,7.73],["twin+prune+cut","Sun3",7.01,7.82],["close+cut","Fan5",3.24,4.6],["swap+cut","Theta",2.45,3.35],["contract+sprout","P8",2.44,2.61],["contract+sprout","K23",2.09,2.26],["contract+sprout","Triforce",2.81,2.81],["contract+sprout","Envelope",2.5,2.67],["swap+close+cut","K23",2.71,3.39],["smooth+close+cut","Sun3",3.72,6.05],["flip+contract","C7",6.9,8.33],["flip+contract","Sun3",2.62,3.2],["flip+contract","Butterfly2",5.98,7.97],["flip+contract","Mobius3",2.9,3.2],["twin+contract","S3",2.05,3.35],["twin+contract","S4",2.74,4.23],["twin+contract","Bowtie",2.6,4.02],["flip+prune","Sun3",2.2,2.94],["flip+prune","Butterfly2",3.35,4.67],["flip+prune","Bowtie",1.83,2.4],["flip+twin+prune","K24",7.45,8.91],["flip+cut+close","Octa",3.95,5.4],["flip+cut+close","Bull",2.42,2.59],["contract+split+close","C4",3.19,4.82],["contract+split+close","House",5.19,6.57],["contract+split+close","Bull",4.2,5.6],["star+fold+flip","P5",6.29,7.16],["star+fold+flip","K23",7.14,8.01],["flip","P8",4.99,6.07],["flip+swap","C5",2.13,3.33],["twin+prune+cut","Tadpole",4.12,4.93],["close+cut","C5",2.49,3.38],["swap+cut","K24",2.71,3.5],["swap+cut","TriChain",3.02,3.2],["swap+cut","Sun4",2.31,2.79],["contract+sprout","C5",1.63,1.8],["contract+sprout","C6",1.8,1.8],["contract+sprout","P7",2.34,2.34],["flip+contract","Lollipop",6.88,7.35],["flip+contract","Theta",3.06,4.07],["twin+contract","K4",1.68,2.12],["smooth+sprout","Caterpillar",2.51,2.51],["flip+twin+prune","K5",5.71,6.61],["contract+split+close","Gem",5.59,7.27],["star+fold+flip","Fan4",8.65,8.82],["flip+smooth+split","Fan4",5.92,6.59],["flip+swap","House",2.39,2.83],["flip+swap","Theta",5.55,6.67],["star+fold+swap","Spider",5.63,6.95],["twin+prune+cut","Triforce",5.9,6.08],["contract+sprout","Bull",2.6,2.6],["swap+close+cut","TwoTri",4.27,4.57],["flip+contract","K34",3.28,3.58],["flip+contract","Spider",5.33,7.46],["twin+contract","W4",2.14,2.71],["flip+prune","Spider",3.36,4.19],["star+fold","K33",1.38,3.73],["fold+swap","Wagner",2.54,4.75],["smooth+sprout","P8",2.33,2.5],["flip+twin+prune","S5",7.34,7.8],["flip","W4",1.71,2.01],["flip+swap","Fan5",5.07,5.07],["close+cut","House",2.19,3.08],["close+cut","Bowtie",2.14,2.62],["flip+contract","K33",2.9,3.2],["swap+contract+split","C5",3.06,3.51],["flip+twin+smooth+cut","S4",4.91,5.08],["star+fold","Wagner",5.87,5.87],["smooth+sprout","P7",2.22,2.22],["smooth+sprout","Tree8",2.75,2.75],["smooth+sprout","Lollipop",2.32,2.32],["flip+cut+close","Mobius3",4,5.25],["star+fold+flip","Gem",8.65,8.82],["flip","P5",1.68,1.98],["flip","Bull",1.71,2.01],["swap+cut","K23",1.8,2.48],["contract+sprout","P6",2.14,2.31],["twin+contract","K24",2.65,3.12],["smooth+swap","TwoSq",1.68,3.09],["contract+split+close","K23",5.93,6.23],["contract+sprout","C4",1.75,1.75],["smooth+sprout","C5",1.64,1.64]];
+/* allowed: the rules the player has met */
+function generate(tier,allowed,rnd=Math.random){const [lo,hi]=LAB[tier],pool=COMBOS.filter(c=>c[3]>=lo&&c[2]<=hi&&c[0].split('+').every(r=>allowed.includes(r)));
+  for(let t=0;t<12&&pool.length;t++){const [rs,sn]=pool[Math.floor(rnd()*pool.length)],rules=rs.split('+'),start=SH[sn],cap=start.V.length+1;
+    const M=explore(start,rules,cap);if(!M.full)continue;
+    const cands=[...M.S].filter(([k,st])=>st.d>=3&&st.d<=13&&st.n<=3&&st.g.V.length>=4&&st.g.E.size<=2*st.g.V.length&&connected(st.g));
+    if(!cands.length)continue;const W=walks(M,Math.max(...cands.map(([,st])=>st.d))+4);
+    for(let i=cands.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[cands[i],cands[j]]=[cands[j],cands[i]];}
+    for(const [th,st] of cands){const a=inspect(M,th,rules,W);
+      if(a.tiers&&!a.unused.length&&a.stuck<.75&&a.D>=lo&&a.D<hi)return {rules,start,target:st.g,best:a.B,cap,lab:tier,D:a.D};}}
+  return null;}
+if(typeof module!=='undefined')module.exports={LEVELS,RULES,SH,moves,iso,hash,nbrs,edgesOf,key,G,capOf,explore,toTarget,walks,inspect,analyze,generate,COMBOS,LAB};
 </script>
 
 <script>
@@ -364,13 +414,28 @@ cv.width=W*DPR;cv.height=H*DPR;
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DEG=['#9aa5b1','#3d8bd9','#23a88f','#f0a92a','#e2603a','#a957c4','#5257d1'];
 const degCol=d=>DEG[Math.min(d,DEG.length-1)];
-const PANEL={x:566,y:14,w:220,h:214};const OPTC={};
-const optOf=i=>OPTC[i]??(OPTC[i]=LEVELS[i].best??solve(LEVELS[i].start,LEVELS[i].target,LEVELS[i].rules,9,capOf(LEVELS[i])));
-let li=0,L,gr,pos,hist,movesN,rule=null,picks=[],won=false,morph=null,drag=null,bad=null,tlay=null,hover=null,hint=null,hintMsg='';
-let save={stars:{}};try{save=Object.assign(save,JSON.parse(localStorage.getItem('rewrite-save')||'{}'));}catch(e){}
-/* v2, v3 and v4 reordered levels 16 on, so stars saved there belonged to other puzzles */
-if((save.v||1)<4){for(const k of Object.keys(save.stars))if(+k>=15)delete save.stars[k];save.v=4;}
+const PANEL={x:566,y:14,w:220,h:214};
+/* chapters: [first level, name]; each one after Basics brings in a rule */
+const CHAPTERS=[[1,"Basics"],[14,"Pruning"],[22,"Smoothing"],[32,"Twins"],[44,"Flips"],[58,"Stars"],[70,"Folds"],[82,"Grand lab"]];
+const chapterOf=i=>CHAPTERS.filter(c=>c[0]<=i+1).pop();
+/* fewest moves; the original levels have no stored best, so map them once */
+const bestOf=L=>L.best??(L.best=(()=>{const M=explore(L.start,L.rules,capOf(L));return M.S.get(hash(L.target)).d;})());
+let li=0,dist=null,dead=false,parts=[],L,gr,pos,hist,movesN,rule=null,picks=[],won=false,morph=null,drag=null,bad=null,tlay=null,hover=null,hint=null,hintMsg='';
+let save={stars:{},lab:{}};try{save=Object.assign(save,JSON.parse(localStorage.getItem('rewrite-save')||'{}'));}catch(e){}
+/* v2-v5 reordered later levels, so stars saved there belonged to other puzzles */
+if((save.v||1)<5){for(const k of Object.keys(save.stars))if(+k>=11&&k!=='12'&&k!=='14')delete save.stars[k];save.v=5;}
 function persist(){try{localStorage.setItem('rewrite-save',JSON.stringify(save));}catch(e){}}
+
+/* ---------- solver worker: level maps (instant hints, dead-end warnings) and Lab puzzles, off the main thread ---------- */
+function job(m){
+  if(m.type==='map'){const M=explore(m.L.start,m.L.rules,capOf(m.L));return {dist:M.full?toTarget(M,hash(m.L.target)):null};}
+  return {L:generate(m.tier,m.allowed)};}
+let worker=null,jobs=0;const waiting=new Map();
+function runLocal(){for(const [t,[m,cb]] of waiting){waiting.delete(t);setTimeout(()=>cb(job(m)),20);}}
+try{worker=new Worker(URL.createObjectURL(new Blob([$('#sim').textContent,`;${job};onmessage=e=>postMessage({token:e.data.token,...job(e.data)});`],{type:'text/javascript'})));
+  worker.onmessage=e=>{const w=waiting.get(e.data.token);if(w){waiting.delete(e.data.token);w[1](e.data);}};
+  worker.onerror=()=>{worker=null;runLocal();};}catch(e){worker=null;}
+function ask(m,cb){m.token=++jobs;waiting.set(m.token,[m,cb]);if(worker)worker.postMessage(m);else runLocal();}
 
 /* force layout */
 function relax(gg,P,iters,cx,cy,rest=72,pinned=null,board=true){
@@ -407,35 +472,56 @@ function targetLayout(t,tpos){if(tpos){const out=new Map();t.V.forEach((v,i)=>ou
 
 /* level flow */
 function buildLevels(){
-  const stars=i=>save.stars[i]||0,total=LEVELS.reduce((n,_,i)=>n+stars(i),0),el=$('#levels');el.innerHTML='';
-  const mk=(html,f,title)=>{const b=document.createElement('button');b.innerHTML=html;b.onclick=f;if(title)b.title=title;el.appendChild(b);return b;};
-  mk('◀',()=>load(Math.max(0,li-1)),'Previous level').disabled=li===0;
-  const pk=mk(`Level ${li+1} / ${LEVELS.length}<small>★ ${total}/${LEVELS.length*3}</small>`,()=>{$('#lvgrid').hidden=!$('#lvgrid').hidden;},'All levels');pk.id='lvPick';
-  mk('▶',()=>load(Math.min(LEVELS.length-1,li+1)),'Next level').disabled=li===LEVELS.length-1;
+  const stars=i=>save.stars[i]||0,total=LEVELS.reduce((n,_,i)=>n+stars(i),0),el=$('#levels'),lab=li<0;el.innerHTML='';
+  const mk=(html,f,title,cls)=>{const b=document.createElement('button');b.innerHTML=html;b.onclick=f;if(title)b.title=title;if(cls)b.className=cls;el.appendChild(b);return b;};
+  mk('◀',()=>load(Math.max(0,li-1)),'Previous level').disabled=lab||li===0;
+  const pk=mk(lab?`Lab · ${L.lab}`:`Level ${li+1} / ${LEVELS.length}<small>★ ${total}/${LEVELS.length*3}</small>`,()=>toggle('#lvgrid'),'All levels');pk.id='lvPick';
+  mk('▶',()=>load(Math.min(LEVELS.length-1,li+1)),'Next level').disabled=lab||li===LEVELS.length-1;
+  mk('Lab',()=>toggle('#labp'),'Fresh puzzles, made on the spot','lab');
   const gEl=$('#lvgrid');gEl.innerHTML='';
-  LEVELS.forEach((lv,i)=>{const b=document.createElement('button'),s=stars(i);b.className='lv'+(i===li?' cur':'');
-    b.innerHTML=`<b>${i+1}</b><small>${'★'.repeat(s)}${'·'.repeat(3-s)}</small>`;b.title=lv.name;b.onclick=()=>load(i);gEl.appendChild(b);});
+  CHAPTERS.forEach(([from,name],c)=>{const to=(CHAPTERS[c+1]?.[0]??LEVELS.length+1)-1,h=document.createElement('div');let got=0;for(let i=from-1;i<to;i++)got+=stars(i);
+    h.className='ch';h.innerHTML=`${name}<small>★ ${got}/${(to-from+1)*3}</small>`;gEl.appendChild(h);
+    for(let i=from-1;i<to;i++){const b=document.createElement('button'),s=stars(i);b.className='lv'+(i===li?' cur':'');
+      b.innerHTML=`<b>${i+1}</b><small>${'★'.repeat(s)}${'·'.repeat(3-s)}</small>`;b.title=LEVELS[i].name;b.onclick=()=>load(i);gEl.appendChild(b);}});
+  const tEl=$('#tiers');tEl.innerHTML='';
+  for(const [tier,blurb] of [['easy','Warm-up'],['medium','A real think'],['hard','Brain burner']]){const r=save.lab[tier]||{solved:0,perfect:0},b=document.createElement('button');
+    b.innerHTML=`${tier[0].toUpperCase()+tier.slice(1)}<small>${blurb}</small><small>${r.solved} solved · ${r.perfect} perfect</small>`;b.onclick=()=>newLab(tier);tEl.appendChild(b);}
 }
+/* one overlay at a time: the level grid or the Lab panel */
+function toggle(id){const el=$(id),open=el.hidden;$('#lvgrid').hidden=true;$('#labp').hidden=true;el.hidden=!open;}
+/* rules from every level up to the furthest one reached */
+function metRules(){const reach=Math.max(0,...Object.keys(save.stars).map(Number))+1,set=new Set();LEVELS.slice(0,reach+1).forEach(l=>l.rules.forEach(r=>set.add(r)));return [...set];}
+function newLab(tier){$('#labp').hidden=false;$('#lvgrid').hidden=true;$('#labMsg').textContent='Mixing a fresh puzzle…';
+  ask({type:'lab',tier,allowed:metRules()},r=>{$('#labMsg').textContent='Fresh puzzles, mixed for you on the spot. Same rules, endless shapes.';
+    if(!r.L){$('#labMsg').textContent='That mix fizzled. Try again.';return;}
+    const n=Object.values(save.lab).reduce((s,x)=>s+x.solved,0)+1;play({...r.L,name:`Lab puzzle ${n}`},-1);});}
 function buildRules(){
   const el=$('#rules');el.innerHTML='';
   L.rules.forEach((rid,i)=>{const b=document.createElement('button');b.className='rule'+(rule===rid?' sel':'');b.title=RULES[rid].hint;
     const c=document.createElement('canvas');c.width=120;c.height=48;icon(c.getContext('2d'),rid);
     b.appendChild(c);const sp=document.createElement('span');sp.innerHTML=`${RULES[rid].name}<kbd>${i+1}</kbd>`;b.appendChild(sp);
     b.onclick=()=>pickRule(rid);el.appendChild(b);});
-  $('#hint').textContent=hintMsg||(L.tip&&movesN===0?L.tip:rule?RULES[rule].hint+'.':'Pick a rule, then click where it applies.');
+  $('#hint').textContent=dead&&!hintMsg?'Dead end: the target can no longer be reached from here. Undo with Z.':hintMsg||(L.tip&&movesN===0?L.tip:rule?RULES[rule].hint+'.':'Pick a rule, then click where it applies.');
+  $('#hint').classList.toggle('warn',dead);
 }
 function pickRule(rid){rule=rule===rid?null:rid;picks=[];hint=null;hintMsg='';buildRules();}
-function load(i){
-  li=i;L=LEVELS[i];gr={next:L.start.next,V:L.start.V.slice(),E:new Set(L.start.E)};
+const load=i=>play(LEVELS[i],i);
+/* start a level: a campaign one (index i) or a Lab puzzle (i = -1) */
+function play(lvl,i){
+  li=i;L=lvl;gr={next:L.start.next,V:L.start.V.slice(),E:new Set(L.start.E)};
   pos=initPos(gr,300,280,90);
   if(L.start.pos)L.start.V.forEach((v,i)=>{const [x,y]=L.start.pos[i];pos.set(v,{x:300+x*300,y:280+y*300,vx:0,vy:0});});
   relax(gr,pos,L.start.pos?40:300,300,280);
-  tlay=targetLayout(L.target,L.target.pos);hist=[];movesN=0;hint=null;hintMsg='';rule=L.rules.length===1?L.rules[0]:null;picks=[];won=false;morph=null;
-  $('#lvname').textContent=L.name;$('#ov').hidden=true;$('#lvgrid').hidden=true;buildLevels();buildRules();updateHud();
+  tlay=targetLayout(L.target,L.target.pos);hist=[];movesN=0;hint=null;hintMsg='';rule=L.rules.length===1?L.rules[0]:null;picks=[];won=false;morph=null;dist=null;dead=false;
+  bestOf(L);ask({type:'map',L:{start:L.start,target:L.target,rules:L.rules,cap:capOf(L)}},r=>{if(lvl!==L)return;dist=r.dist;checkDead();});
+  $('#lvname').textContent=i<0?L.name:`${chapterOf(i)[1]} · ${L.name}`;$('#ov').hidden=true;$('#lvgrid').hidden=true;$('#labp').hidden=true;buildLevels();buildRules();updateHud();
 }
-function updateHud(){$('#sMoves').textContent=movesN;$('#sBest').textContent=optOf(li);}
+const restart=()=>play(L,li);
+/* the level map knows every shape that can still reach the target */
+function checkDead(){dead=!!dist&&!won&&!dist.has(hash(gr));buildRules();}
+function updateHud(){$('#sMoves').textContent=movesN;$('#sBest').textContent=bestOf(L);}
 function snapshot(){return {gr:{next:gr.next,V:gr.V.slice(),E:new Set(gr.E)},pos:new Map([...pos].map(([k,p])=>[k,{...p}])),movesN};}
-function undo(){if(won||!hist.length)return;const s=hist.pop();gr=s.gr;pos=s.pos;movesN=s.movesN;picks=[];hint=null;hintMsg='';updateHud();buildRules();}
+function undo(){if(won||!hist.length)return;const s=hist.pop();gr=s.gr;pos=s.pos;movesN=s.movesN;picks=[];hint=null;hintMsg='';updateHud();checkDead();}
 function apply(){
   hist.push(snapshot());
   const h=RULES[rule].apply(gr,picks);
@@ -443,21 +529,27 @@ function apply(){
     const ang=Math.random()*6.28,off=near.length===1?46:12;pos.set(h.born,{x:mx+Math.cos(ang)*off,y:my+Math.sin(ang)*off,vx:0,vy:0,pop:performance.now()});}
   if(h.merged){const [a,b]=h.merged,p=pos.get(a),q=pos.get(b);p.x=(p.x+q.x)/2;p.y=(p.y+q.y)/2;p.pop=performance.now();pos.delete(b);}
   for(const v of [...pos.keys()])if(!h.V.includes(v))pos.delete(v);
-  gr={next:h.next,V:h.V,E:h.E};movesN++;picks=[];hint=null;hintMsg='';updateHud();buildRules();
-  const m=iso(gr,L.target);
-  if(m){won=true;rule=null;buildRules();
+  gr={next:h.next,V:h.V,E:h.E};movesN++;picks=[];hint=null;hintMsg='';updateHud();
+  const m=iso(gr,L.target);if(!m)checkDead();
+  if(m){won=true;dead=false;rule=null;buildRules();
     const s=260,cx=300,cy=270,from=new Map([...pos].map(([k,p])=>[k,[p.x,p.y]])),to=new Map();for(const [v,w] of m){const [tx,ty]=tlay.get(w);to.set(v,[cx+tx*s,cy+ty*s]);}
     morph={t0:performance.now(),from,to};}
 }
 function finish(){
-  const n=1+(movesN<=optOf(li)+2?1:0)+(movesN<=optOf(li)?1:0);
-  if(n>(save.stars[li]||0)){save.stars[li]=n;persist();buildLevels();}
-  $('#ovTitle').textContent=movesN<=optOf(li)?'Perfect!':'Same shape!';
+  const best=bestOf(L),n=1+(movesN<=best+2?1:0)+(movesN<=best?1:0);
+  if(li>=0){if(n>(save.stars[li]||0))save.stars[li]=n;}
+  else{const r=save.lab[L.lab]||(save.lab[L.lab]={solved:0,perfect:0});r.solved++;if(n===3)r.perfect++;}
+  persist();buildLevels();
+  if(n===3)burst();
+  $('#ovTitle').textContent=movesN<=best?'Perfect!':'Same shape!';
   $('#ovStars').innerHTML=[0,1,2].map(k=>`<span class="${k<n?'on':''}" style="animation-delay:${.15+k*.18}s">★</span>`).join('');
-  const goals=[[true,'Match the target'],[movesN<=optOf(li)+2,`${optOf(li)+2} moves or fewer`],[movesN<=optOf(li),`${optOf(li)} moves, the fewest possible`]];
+  const goals=[[true,'Match the target'],[movesN<=best+2,`${best+2} moves or fewer`],[movesN<=best,`${best} moves, the fewest possible`]];
   $('#ovGoals').innerHTML=goals.map(([ok,l])=>`<div class="${ok?'ok':'no'}"><span>${ok?'✓':'✗'}</span><span>${l}</span></div>`).join('')+`<div class="no"><span></span><span>You used ${movesN}</span></div>`;
-  $('#ovNext').hidden=li>=LEVELS.length-1;$('#ov').hidden=false;
+  $('#ovNext').textContent=li<0?'New puzzle':'Next';$('#ovNext').hidden=li===LEVELS.length-1;$('#ov').hidden=false;
 }
+/* a perfect solve throws confetti in the link colours */
+function burst(){if(reduce)return;const t=performance.now();for(let k=0;k<70;k++){const a=Math.random()*Math.PI*2,v=3+Math.random()*6;
+  parts.push({x:300,y:260,vx:Math.cos(a)*v,vy:Math.sin(a)*v-4,c:DEG[1+k%6],t,r:3+Math.random()*3});}}
 
 /* picking */
 function pt(e){const r=cv.getBoundingClientRect();return [(e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H];}
@@ -481,14 +573,17 @@ cv.addEventListener('pointermove',e=>{hover=pt(e);if(!drag||drag.v===null||won)r
 cv.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;if(!d.moved)click(d.x0,d.y0);});
 cv.addEventListener('contextmenu',e=>{e.preventDefault();picks=[];});
 addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.repeat)return;const k=e.key.toLowerCase();
-  if(k==='escape'){picks=[];$('#lvgrid').hidden=true;}else if(k==='z'||k==='backspace')undo();else if(k==='r')load(li);
+  if(k==='escape'){picks=[];$('#lvgrid').hidden=true;$('#labp').hidden=true;}else if(k==='z'||k==='backspace')undo();else if(k==='r')restart();
   else if(k==='h')showHint();else if(k>='1'&&k<='9'&&+k<=L.rules.length)pickRule(L.rules[+k-1]);});
-function showHint(){if(won)return;const p=solvePath(gr,L.target,L.rules,depthOf(L),capOf(L));
-  if(!p){hintMsg='No way to the target from here. Undo or reset.';buildRules();return;}
-  const [r,pk]=p[0];rule=r;picks=[];hint=pk;hintMsg=`Next: ${RULES[r].name} on the glowing ${RULES[r].picks[0]==='edge'?'link':'nodes'}. ${p.length} move${p.length>1?'s':''} to go.`;buildRules();}
+/* the next move on a shortest route, read straight off the level map */
+function showHint(){if(won)return;
+  if(!dist){hintMsg='Still mapping this level, try again in a moment.';buildRules();return;}
+  const left=dist.get(hash(gr));if(left===undefined){hintMsg='';checkDead();return;}
+  for(const r of L.rules)for(const p of moves(gr,r)){const h=RULES[r].apply(gr,p);if(h.V.length>capOf(L)||dist.get(hash(h))!==left-1)continue;
+    rule=r;picks=[];hint=p;hintMsg=`Next: ${RULES[r].name} on the glowing ${RULES[r].picks[0]==='edge'?'link':'nodes'}. ${left} move${left>1?'s':''} to go.`;buildRules();return;}}
 $('#bHint').onclick=showHint;
-$('#bUndo').onclick=undo;$('#bReset').onclick=()=>load(li);
-$('#ovRetry').onclick=()=>load(li);$('#ovNext').onclick=()=>load(Math.min(LEVELS.length-1,li+1));
+$('#bUndo').onclick=undo;$('#bReset').onclick=restart;
+$('#ovRetry').onclick=restart;$('#ovNext').onclick=()=>li<0?newLab(L.lab):load(li+1);
 
 /* drawing */
 function node(c,x,y,r,d,ring){c.fillStyle='rgba(20,35,55,.15)';c.beginPath();c.arc(x+1.5,y+2.5,r,0,7);c.fill();c.fillStyle=degCol(d);c.beginPath();c.arc(x,y,r,0,7);c.fill();c.lineWidth=2.5;c.strokeStyle='#fff';c.stroke();
@@ -550,6 +645,7 @@ function render(now){
   for(const v of gr.V){const p=pos.get(v),pop=p.pop?Math.max(0,1-(now-p.pop)/350):0,r=13*(1+(reduce?0:.35*pop));
     node(g,p.x,p.y,r,N.get(v).size,picks.includes(v)?'#e2603a':candN.has(v)?'rgba(226,96,58,.55)':null);
     const k=picks.indexOf(v);if(k>=0&&RULES[rule].picks.length>2){g.font='700 12px Fredoka, system-ui, sans-serif';g.fillStyle='#e2603a';g.textAlign='center';g.textBaseline='middle';g.fillText('abcd'[k],p.x+15,p.y-15);}}
+  parts=parts.filter(q=>now-q.t<1600);for(const q of parts){q.x+=q.vx;q.y+=q.vy;q.vy+=.18;q.vx*=.99;g.globalAlpha=Math.max(0,1-(now-q.t)/1600);g.fillStyle=q.c;g.beginPath();g.arc(q.x,q.y,q.r,0,7);g.fill();}g.globalAlpha=1;
   if(bad&&now-bad.t<350){g.strokeStyle=`rgba(226,96,58,${1-(now-bad.t)/350})`;g.lineWidth=2;g.beginPath();g.arc(bad.x,bad.y,12,0,7);g.stroke();}
   // target card
   const P=PANEL;g.fillStyle='rgba(255,255,255,.94)';g.strokeStyle='#cfd8e1';g.lineWidth=1.5;g.beginPath();g.roundRect(P.x,P.y,P.w,P.h,12);g.fill();g.stroke();

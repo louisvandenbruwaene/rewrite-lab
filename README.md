@@ -13,13 +13,18 @@ The app opens the game in its own Brave window. The folder path is baked in, so 
 
 ## Levels
 
-100 levels, 12 rules. Stars: 3 for the fewest moves, 2 for at most two more, 1 for any solve.
+100 levels in 8 chapters, 12 rules. Stars: 3 for the fewest moves, 2 for at most two more, 1 for any solve.
 
-Levels 16-100 come from a solver search (every shape reachable from each start, kept when only a few move orders reach it) and must pass `tools/stars.cjs`: at most three optimal routes, so a 3-star solve is a specific plan rather than any order; solutions exist at best, at best+1 or +2 (2 stars) and longer (1 star), every rule the level offers is on some optimal route, and fewer than 75% of positions are dead ends. Difficulty is -log10(precision) + 0.3 x best, where precision is the chance that random play hits the target in best moves. Level 15 sits at 60% of the hardest level. Each level stores its fewest moves (`best`) and the node cap it was solved under (`cap`), which keeps every Hint under a second.
+Levels 1-11, 13 and 15 are the originals. The rest come from a solver search: from each start, every reachable shape is a candidate target, kept when it is far away yet only a few move orders (at most three) reach it. Each must also have real star tiers (solutions at best, best+1 or +2, and longer), need every rule it offers, and stay under 75% dead ends. Difficulty is -log10(precision) + 0.3 x best, where precision is the chance that random play hits the target in best moves. The curve climbs steadily from level 15 (60% of the top) with a wave on top, an easier opener and a harder closer per chapter.
 
-After editing a level:
+## How it plays
+
+- A worker maps each level when it opens: every shape that can still reach the target and how far it is. Hints read the next move straight off that map, and a move into a dead end is flagged at once.
+- **The Lab** mixes fresh puzzles on the spot (Easy, Medium, Hard) from the rules the player has met, under the same quality rules as the campaign.
+
+## Tools
 
 ```
-node tools/check.cjs          # fewest moves + worst-case Hint time, all levels
-node tools/stars.cjs 16 30    # star tiers, precision, unused rules, dead ends, for a range
+node tools/check.cjs          # fewest moves and map build time, all levels
+node tools/stars.cjs 16 30    # tiers, routes, difficulty, unused rules, dead ends, for a range
 ```
