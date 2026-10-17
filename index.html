@@ -277,7 +277,7 @@ const LEVELS=[
   {name:'Helix',rules:['contract','split','close'],start:SH.Bowtie,target:G(6,[[0,2],[2,3],[0,3],[0,4],[0,5],[1,5],[0,1]]),best:5,cap:6},
   {name:'Crystal',rules:['smooth','swap'],start:SH.TriChain,target:G(5,[[0,1],[1,2],[2,3],[1,3],[3,4],[0,3],[1,4]]),best:3,cap:8,tip:'Smooth takes out a two-link node and joins its neighbours.'},
   {name:'Polymer',rules:['smooth','sprout'],start:SH.Tree8,target:G(9,[[0,2],[0,3],[1,4],[1,5],[2,6],[0,1],[0,7],[0,8]]),best:3,cap:9},
-  {name:'Vessel',rules:['smooth','split','close'],start:SH.House,target:G(6,[[0,2],[0,3],[1,3],[1,2],[0,4],[1,4],[0,5],[1,5],[0,1]]),best:5,cap:6},
+  {name:'Vessel',rules:['contract','split','close'],start:SH.W4,target:G(6,[[1,2],[0,2],[0,3],[1,3],[2,3],[0,1],[0,5],[4,5]]),best:4,cap:6},
   {name:'Filament',rules:['smooth','split','close'],start:SH.K23,target:G(6,[[0,3],[1,3],[0,1],[0,4],[2,4],[1,5],[2,5],[4,5]]),best:4,cap:6},
   {name:'Prism shard',rules:['contract','sprout'],start:SH.Butterfly2,target:G(8,[[0,1],[0,2],[2,3],[0,3],[0,4],[4,5],[0,5],[1,6],[1,7]]),best:3,cap:8},
   {name:'Reagent',rules:['contract','sprout'],start:SH.Lollipop,target:G(8,[[0,1],[0,2],[1,2],[2,3],[3,4],[4,5],[3,6],[3,7]]),best:3,cap:8},
@@ -354,16 +354,16 @@ const LEVELS=[
   {name:'Emblem',rules:['star','twin','prune'],start:SH.Butterfly2,target:G(8,[[0,3],[3,4],[0,4],[0,5],[1,5],[0,6],[2,6],[3,7],[4,7],[5,7],[6,7]]),best:5,cap:8},
   {name:'Sigil',rules:['twin','split','prune'],start:SH.Sun4,target:G(9,[[0,4],[1,2],[1,5],[2,3],[0,3],[3,6],[0,7],[1,7],[2,8],[5,8],[7,8]]),best:3,cap:9},
   {name:'Grand finale',rules:['twin','smooth','cut'],start:SH.K24,target:G(7,[[0,1],[0,2],[0,3],[1,4],[2,4],[3,4],[0,4],[2,5],[3,5],[2,3],[1,6],[2,6],[3,6],[4,6]]),best:7,cap:7},
-  {name:'Rune',rules:['star','flip'],start:SH.Spider,target:G(8,[[0,3],[5,6],[0,2],[0,4],[0,7],[0,1],[0,5],[3,4],[3,7],[2,7],[1,2],[4,7],[0,6]]),best:7,cap:8},
-  {name:'Cog',rules:['star','contract','sprout'],start:SH.W6,target:G(8,[[3,4],[0,4],[0,3],[0,5],[1,5],[2,5],[5,6],[5,7]]),best:5,cap:8},
-  {name:'Rotor',rules:['twin','smooth','cut'],start:SH.P6,target:G(7,[[1,2],[0,3],[1,4],[3,4],[0,4],[0,1],[3,5],[4,5],[1,5],[0,5],[1,6]]),best:8,cap:7},
-  {name:'Turbine',rules:['twin','split','prune'],start:SH.Spider,target:G(8,[[1,2],[0,3],[3,4],[3,5],[0,6],[1,6],[1,7],[5,7]]),best:5,cap:8},
-  {name:'Valve',rules:['contract','split','close'],start:SH.Fan4,target:G(6,[[1,2],[2,3],[1,4],[1,3],[0,5],[1,5],[2,5],[3,5]]),best:6,cap:6},
-  {name:'Nozzle',rules:['twin','contract'],start:SH.C6,target:G(7,[[2,3],[0,3],[3,4],[0,1],[0,4],[0,5],[1,2],[1,5],[3,6],[1,6],[4,6],[5,6]]),best:5,cap:7},
-  {name:'Flask',rules:['star','contract'],start:SH.W6,target:G(7,[[1,5],[4,6],[0,2],[0,5],[0,3],[0,6]]),best:8,cap:8},
-  {name:'Beaker',rules:['flip','twin','prune'],start:SH.Octa,target:G(7,[[0,1],[0,4],[1,2],[1,5],[2,3],[0,6],[2,6],[5,6]]),best:8,cap:7},
-  {name:'Burette',rules:['flip','twin','prune'],start:SH.Mobius3,target:SH.Lollipop,best:7,cap:7},
-  {name:'Pipette',rules:['twin','contract'],start:SH.Sun3,target:G(7,[[0,2],[0,1],[1,3],[2,4],[1,4],[0,4],[2,5],[1,5],[4,5],[0,5],[2,6],[1,6],[4,6],[5,6]]),best:5,cap:7}
+  {name:'Labyrinth',rules:['star','contract','sprout'],start:SH.W6,target:G(8,[[3,4],[0,4],[0,3],[0,5],[1,5],[2,5],[5,6],[5,7]]),best:5,cap:8},
+  {name:'Archway',rules:['star','flip'],start:SH.Spider,target:G(8,[[0,3],[5,6],[0,2],[0,4],[0,7],[0,1],[0,5],[3,4],[3,7],[2,7],[1,2],[4,7],[0,6]]),best:7,cap:8},
+  {name:'Monolith',rules:['twin','smooth','cut'],start:SH.P6,target:G(7,[[1,2],[0,3],[1,4],[3,4],[0,4],[0,1],[3,5],[4,5],[1,5],[0,5],[1,6]]),best:8,cap:7},
+  {name:'Riddle',rules:['twin','contract'],start:SH.C6,target:G(7,[[2,3],[0,3],[3,4],[0,1],[0,4],[0,5],[1,2],[1,5],[3,6],[1,6],[4,6],[5,6]]),best:5,cap:7},
+  {name:'Gauntlet',rules:['twin','split','prune'],start:SH.Spider,target:G(8,[[1,2],[0,3],[3,4],[3,5],[0,6],[1,6],[1,7],[5,7]]),best:5,cap:8},
+  {name:'Enigma',rules:['flip','twin','prune'],start:SH.Octa,target:G(7,[[0,1],[0,4],[1,2],[1,5],[2,3],[0,6],[2,6],[5,6]]),best:8,cap:7},
+  {name:'Crucible',rules:['twin','contract'],start:SH.Sun3,target:G(7,[[0,2],[0,1],[1,3],[2,4],[1,4],[0,4],[2,5],[1,5],[4,5],[0,5],[2,6],[1,6],[4,6],[5,6]]),best:5,cap:7},
+  {name:'Paradox',rules:['star','contract'],start:SH.W6,target:G(7,[[1,5],[4,6],[0,2],[0,5],[0,3],[0,6]]),best:8,cap:8},
+  {name:'Zenith',rules:['contract','split','close'],start:SH.Fan4,target:G(6,[[1,2],[2,3],[1,4],[1,3],[0,5],[1,5],[2,5],[3,5]]),best:6,cap:6},
+  {name:'Last word',rules:['flip','twin','prune'],start:SH.Mobius3,target:SH.Lollipop,best:7,cap:7}
 ];
 /* the solver never grows a shape past cap nodes: the level's own, else one more than the bigger of start and target */
 const capOf=L=>L.cap??Math.max(L.start.V.length,L.target.V.length)+1;
@@ -449,6 +449,8 @@ if(save.v<6){for(const k of [22,31,32,43,44,57,58,69,70])delete save.stars[k];sa
 if(save.v<7){for(const k of [15,16,17,18,19,20,23,24,25,26,27,28,29,30,33,34,35,36,37,38,39,40,41,42,45,46,47,48,49,50,52,53,54,55,56,59,60,61,62,63,64,65,66,67,68,71,72,73,74,75,76,77,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99])delete save.stars[k];save.v=7;}
 /* v8 re-picked for structure: symmetric targets, each chapter on its own rule */
 if(save.v<8){for(const k of [15,16,17,18,19,20,23,24,25,26,27,28,29,30,33,35,36,37,38,39,40,41,44,45,46,47,48,49,50,51,52,53,54,55,59,60,61,62,63,64,65,66,67,68,70,71,72,73,74,75,76,77,78,79,80,81,82,83,84,85,86,87,88,89,90,91,92,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109])delete save.stars[k];save.v=8;}
+/* v9 swapped level 24 for a medium one and re-sorted Masters by difficulty */
+if(save.v<9){for(const k of [23,100,101,103,104,105,106,107,108,109])delete save.stars[k];save.v=9;}
 function persist(){try{localStorage.setItem('rewrite-save',JSON.stringify(save));}catch(e){}}
 
 /* ---------- solver worker: level maps (instant hints) and Lab puzzles, off the main thread ---------- */
