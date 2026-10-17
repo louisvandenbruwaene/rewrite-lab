@@ -15,7 +15,7 @@ The app opens the game in its own Brave window. The folder path is baked in, so 
 
 100 levels in 8 chapters, 12 rules. Stars: 3 for the fewest moves, 2 for at most two more, 1 for any solve.
 
-Levels 1-11, 13 and 15 are the originals. The rest come from a solver search: from each start, every reachable shape is a candidate target, kept when it is far away yet only a few move orders (at most three) reach it. Each must also have real star tiers (solutions at best, best+1 or +2, and longer), need every rule it offers, and stay under 75% dead ends. Difficulty is -log10(precision) + 0.3 x best, where precision is the chance that random play hits the target in best moves. The curve climbs steadily from level 15 (60% of the top) with a wave on top, an easier opener and a harder closer per chapter.
+Levels 1-11, 13 and 15 are the originals. The rest come from a solver search: from each start, every reachable shape is a candidate target, kept when it is far away yet only a few move orders (at most three) reach it. Each must also have real star tiers (solutions at best, best+1 or +2, and longer), need every rule it offers, and stay under 75% dead ends. Difficulty is -log10(precision) + 0.3 x best, where precision is the chance that random play hits the target in best moves. Levels 16-100 are then picked by a player model (tools/play.cjs) rather than by that score alone: greedy colour matching must fail (it solves at most 20%), and a careful player who explores and backtracks must still get there (at least 8% of tries). Its success rate falls steadily from about 55% at level 16 to about 10% at level 100, with a wave on top, a breather opener for each new rule, and most chapter levels using the chapter's rule.
 
 ## How it plays
 
@@ -30,4 +30,5 @@ Levels 1-11, 13 and 15 are the originals. The rest come from a solver search: fr
 ```
 node tools/check.cjs          # fewest moves and map build time, all levels
 node tools/stars.cjs 16 30    # tiers, routes, difficulty, unused rules, dead ends, for a range
+node tools/play.cjs 16 30     # player model: greedy and careful success per level
 ```
