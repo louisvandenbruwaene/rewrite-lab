@@ -170,6 +170,7 @@ function completions(g,rid,picks){const R=RULES[rid],out=new Map();
   const rec=p=>{if(p.length===R.picks.length){const h=R.apply(g,p),k=h.V.length+'|'+[...h.E].sort().join();if(!out.has(k))out.set(k,p.slice());return;}
     const kind=R.picks[p.length];
     for(const c of kind==='node'?g.V:edgesOf(g)){if(kind==='node'&&p.includes(c))continue;if(R.valid(g,p,c)){p.push(c);rec(p);p.pop();}}};
+  if(!picks.every((c,i)=>R.valid(g,picks.slice(0,i),c)))return [];// the picks so far must themselves be legal
   rec(picks.slice());return [...out.values()];}
 /* every complete application of a rule, for the solver */
 function moves(g,rid){const R=RULES[rid],out=[];
