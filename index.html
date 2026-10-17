@@ -648,20 +648,17 @@ function icon(c,rid){
     fold:o=>{const a=[o+6,40],b=[o+24,6],cc=[o+42,40],m=[o+24,28];if(o){ghost(m);add(a,b);add(b,cc);add(a,cc);}else{[a,b,cc].forEach(p=>ln(m,p));dot(m);}[a,b,cc].forEach(p=>dot(p));},
   };D[rid](0);arrow();D[rid](72);
 }
-/* contraction preview: the link's two ends slide together into one node, dragging their links along, then hold on the result.
-   The old ends and their links fade so the moving copy reads as the move. Returns the faded ends and a draw for the moving copy, which goes on top of the nodes. */
-function previewContract(h,gp,now){
+/* contraction preview: the merged node at the link's midpoint with its links, over the faded old ends and their links.
+   Returns the faded ends and a draw for the merged node, which goes on top of the nodes. */
+function previewContract(h,gp){
   const [a,b]=h.merged,pa=gp(a),pb=gp(b),m=[(pa[0]+pb[0])/2,(pa[1]+pb[1])/2],N=nbrs(gr);
-  const t=reduce?1:Math.min(1,((now%1800)/1800)/.45),u=t<.5?2*t*t:1-2*(1-t)*(1-t);
-  const A=[pa[0]+(m[0]-pa[0])*u,pa[1]+(m[1]-pa[1])*u],B=[pb[0]+(m[0]-pb[0])*u,pb[1]+(m[1]-pb[1])*u];
   g.lineCap='round';g.strokeStyle='rgba(247,249,251,.7)';g.lineWidth=6;
   for(const v of [a,b])for(const x of N.get(v)){g.beginPath();g.moveTo(...gp(v));g.lineTo(...gp(x));g.stroke();}
   g.strokeStyle='rgba(35,168,143,.95)';g.lineWidth=3;
-  for(const [v,P] of [[a,A],[b,B]])for(const x of N.get(v))if(x!==a&&x!==b){g.beginPath();g.moveTo(...P);g.lineTo(...gp(x));g.stroke();}
-  if(u<1){g.strokeStyle='rgba(226,96,58,.9)';g.beginPath();g.moveTo(...A);g.lineTo(...B);g.stroke();}
+  for(const x of nbrs(h).get(a)){g.beginPath();g.moveTo(...m);g.lineTo(...gp(x));g.stroke();}
   g.lineCap='butt';
   const d=nbrs(h).get(a).size;
-  return {ids:[a,b],draw:()=>{if(u<1){node(g,...A,13,d,null);node(g,...B,13,d,null);}else node(g,...m,13,d,'rgba(35,168,143,.95)');}};}
+  return {ids:[a,b],draw:()=>node(g,...m,13,d,'rgba(35,168,143,.95)')};}
 function render(now){
   g.setTransform(DPR*scale,0,0,DPR*scale,0,0);
   g.fillStyle='#f7f9fb';g.fillRect(0,0,W,H);
@@ -683,7 +680,7 @@ function render(now){
     const c=at(kind,...hover),done=c!==null&&!(kind==='node'&&picks.includes(c))?completions(gr,rule,picks.concat([c])):[];
     if(done.length===1){const h=RULES[rule].apply(gr,done[0]),gp=v=>{const p=pos.get(v);return p?[p.x,p.y]:null;};
       let bp=null;if(h.born!==undefined){const nr=h.near.map(gp);bp=nr.length===1?[nr[0][0]+40,nr[0][1]-30]:[nr.reduce((s,p)=>s+p[0],0)/nr.length,nr.reduce((s,p)=>s+p[1],0)/nr.length];}
-      if(h.merged)fade=previewContract(h,gp,now);else{
+      if(h.merged)fade=previewContract(h,gp);else{
       const at=v=>v===h.born?bp:gp(v);
       g.setLineDash([6,5]);g.lineWidth=3;
       for(const k of gr.E)if(!h.E.has(k)){const [a,b]=k.split('-').map(Number);g.strokeStyle='rgba(226,96,58,.9)';g.beginPath();g.moveTo(...gp(a));g.lineTo(...gp(b));g.stroke();
