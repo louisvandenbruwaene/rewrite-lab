@@ -1,6 +1,6 @@
 // Star-tier and solution-quality analysis per level, over shapes up to isomorphism.
 //   tiers  exact b..b+4: is there a solution of exactly best, best+1 .. best+4 moves (3, 2 and 1 star)
-//   routes optimal routes (sequences of shapes); precision = routes / all move sequences of that length,
+//   routes optimal routes as sequences of shapes (clicks giving the same shape count once); precision = routes / all move sequences of that length,
 //          the chance that random play hits the target in best moves (lower = more thinking)
 //   rules  how many of the level's rules appear on some optimal route
 //   stuck  share of shapes within best moves of the start from which the target can no longer be reached
@@ -9,7 +9,7 @@ const {LEVELS,RULES,moves,hash,iso,capOf}=require('./sim.cjs');
 function analyze(L,limit=80000){const cap=capOf(L),th=hash(L.target);
   const cls=new Map(),succ=new Map(),add=g=>{const k=hash(g);if(!cls.has(k))cls.set(k,g);return k;};
   const next=k=>{let out=succ.get(k);if(out)return out;const g=cls.get(k);out=[];const seen=new Set();
-    for(const r of L.rules)for(const p of moves(g,r)){const h=RULES[r].apply(g,p);if(h.V.length>cap)continue;const v=add({next:h.next,V:h.V,E:h.E});out.push([v,r]);}
+    for(const r of L.rules)for(const p of moves(g,r)){const h=RULES[r].apply(g,p);if(h.V.length>cap)continue;const v=add({next:h.next,V:h.V,E:h.E});if(!seen.has(v)){seen.add(v);out.push([v,r]);}}
     succ.set(k,out);return out;};
   const s0=add(L.start),tOk=cls.has(th)?null:undefined;
   // explore everything reachable (finite under the cap), shortest distances + route counts
@@ -35,4 +35,4 @@ function analyze(L,limit=80000){const cap=capOf(L),th=hash(L.target);
 module.exports={analyze};
 if(require.main===module){const a=+(process.argv[2]||1),b=+(process.argv[3]||LEVELS.length);
   for(let i=a-1;i<b;i++){const L=LEVELS[i],r=analyze(L);
-    console.log(`${String(i+1).padStart(3)} ${L.name.slice(0,28).padEnd(28)} best ${String(r.B).padStart(2)}${L.best!==undefined&&L.best!==r.B?' (stored '+L.best+'!)':''}  tiers ${r.exact.map(x=>x?'Y':'-').join('')}${r.tiers?'   ':' ! '} precision ${r.precision.toExponential(1)}  rules ${r.rules.length}/${L.rules.length}${r.unused.length?' unused:'+r.unused:''}  stuck ${Math.round(r.stuck*100)}%`);}}
+    console.log(`${String(i+1).padStart(3)} ${L.name.slice(0,28).padEnd(28)} best ${String(r.B).padStart(2)}${L.best!==undefined&&L.best!==r.B?' (stored '+L.best+'!)':''}  tiers ${r.exact.map(x=>x?'Y':'-').join('')}${r.tiers?'   ':' ! '} routes ${String(r.routes).padStart(4)}  precision ${r.precision.toExponential(1)}  rules ${r.rules.length}/${L.rules.length}${r.unused.length?' unused:'+r.unused:''}  stuck ${Math.round(r.stuck*100)}%`);}}
