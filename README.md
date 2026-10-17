@@ -19,7 +19,7 @@ Levels 1-11, 13 and 15 are the originals. The rest come from a solver search: fr
 
 ## Rules
 
-Each rule is named for the graph operation it is: Closure (triadic closure), Pendant, Subdivide, Contraction, Leaf Blower (remove a leaf), Detriangulate, Square Dance (a degree-preserving double edge swap), Homeomorph (smoothing a two-link node), False Twin (same neighbours, not linked to the original), Complement (local complementation), Delta-Wye and Wye-Delta. Rule icons show before and after: orange is what the move adds, faint dashes are what it removes.
+Each rule is named for the graph operation it is: Closure (triadic closure), Pendant, Subdivide, Contraction, Prune, Cut, Swap, Homeomorph (smoothing a two-link node), False Twin (same neighbours, not linked to the original), Complement (local complementation), Delta-Wye and Wye-Delta. Rule icons show before and after: orange is what the move adds, faint dashes are what it removes.
 
 ## How it plays
 
