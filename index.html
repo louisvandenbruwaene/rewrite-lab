@@ -353,6 +353,16 @@ const LEVELS=[
   {name:'Totem',rules:['star','fold','flip'],start:SH.Tadpole,target:G(6,[[2,4],[3,4],[0,5],[1,5],[4,5],[2,3],[2,5],[3,5]]),best:8,cap:6},
   {name:'Emblem',rules:['flip','twin','prune'],start:SH.K5,target:G(6,[[0,1],[1,2],[0,3],[0,4],[2,4],[1,4],[0,5],[2,5],[4,5]]),best:7,cap:6},
   {name:'Grand finale',rules:['star','twin','prune'],start:SH.Butterfly2,target:G(8,[[0,3],[3,4],[0,4],[0,5],[1,5],[0,6],[2,6],[3,7],[4,7],[5,7],[6,7]]),best:5,cap:8},
+  {name:'Labyrinth',rules:['star','fold','swap'],start:SH.Octa,target:G(7,[[2,3],[2,5],[1,5],[1,3],[3,4],[4,5],[3,5],[4,6],[0,1],[3,6],[0,2],[5,6]]),best:9,cap:7},
+  {name:'Archway',rules:['twin','smooth','cut'],start:SH.P6,target:G(7,[[1,2],[0,3],[1,4],[3,4],[0,4],[0,1],[3,5],[4,5],[1,5],[0,5],[1,6]]),best:8,cap:7},
+  {name:'Monolith',rules:['flip','twin','prune'],start:SH.S5,target:G(7,[[0,1],[0,2],[0,3],[1,4],[2,4],[3,4],[0,5],[4,6]]),best:9,cap:7},
+  {name:'Riddle',rules:['contract','split','close'],start:SH.C5,target:G(6,[[2,3],[0,3],[0,4],[0,2],[0,5],[1,5],[2,5],[3,5]]),best:7,cap:6},
+  {name:'Gauntlet',rules:['star','flip','prune'],start:SH.K24,target:G(7,[[1,4],[2,4],[3,4],[0,5],[0,1],[0,2],[0,3],[5,6],[4,6],[0,6],[1,2],[1,3],[1,6],[2,3]]),best:7,cap:7},
+  {name:'Enigma',rules:['twin','split','prune'],start:SH.DoubleStar,target:G(9,[[1,3],[1,4],[1,5],[1,6],[2,6],[0,7],[1,7],[0,8],[2,8]]),best:5,cap:9},
+  {name:'Crucible',rules:['twin','contract'],start:SH.Sun3,target:G(7,[[0,2],[0,1],[1,3],[2,4],[1,4],[0,4],[2,5],[1,5],[4,5],[0,5],[2,6],[1,6],[4,6],[5,6]]),best:5,cap:7},
+  {name:'Paradox',rules:['star','fold','flip'],start:SH.S4,target:G(6,[[0,2],[1,2],[0,3],[1,3],[0,1],[2,5],[3,5],[4,5],[2,3],[2,4],[3,4]]),best:10,cap:6},
+  {name:'Zenith',rules:['star','flip'],start:SH.Fan5,target:G(7,[[1,5],[2,5],[0,2],[0,3],[1,3],[0,6],[5,6],[4,5],[3,4],[1,2],[1,6],[2,6],[3,5]]),best:5,cap:7},
+  {name:'Last word',rules:['flip','twin','prune'],start:SH.K33,target:G(7,[[0,4],[1,4],[2,4],[4,5],[0,1],[0,2],[1,2],[3,5],[5,6],[3,6]]),best:6,cap:7}
 ];
 /* the solver never grows a shape past cap nodes: the level's own, else one more than the bigger of start and target */
 const capOf=L=>L.cap??Math.max(L.start.V.length,L.target.V.length)+1;
@@ -424,7 +434,7 @@ const DEG=['#9aa5b1','#3d8bd9','#23a88f','#f0a92a','#e2603a','#a957c4','#5257d1'
 const degCol=d=>DEG[Math.min(d,DEG.length-1)];
 const PANEL={x:566,y:14,w:220,h:180};
 /* chapters: [first level, name]; each one after Basics brings in a rule */
-const CHAPTERS=[[1,"Basics"],[14,"Pruning"],[22,"Smoothing"],[32,"Twins"],[44,"Flips"],[58,"Stars"],[70,"Folds"],[82,"Grand lab"]];
+const CHAPTERS=[[1,"Basics"],[14,"Pruning"],[22,"Smoothing"],[32,"Twins"],[44,"Flips"],[58,"Stars"],[70,"Folds"],[82,"Grand lab"],[101,"Masters"]];
 const chapterOf=i=>CHAPTERS.filter(c=>c[0]<=i+1).pop();
 /* fewest moves; the original levels have no stored best, so map them once */
 const bestOf=L=>L.best??(L.best=(()=>{const M=explore(L.start,L.rules,capOf(L));return M.S.get(hash(L.target)).d;})());
