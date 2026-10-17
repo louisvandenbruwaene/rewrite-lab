@@ -420,7 +420,7 @@ new ResizeObserver(fit).observe($('#mid'));fit();
 const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const DEG=['#9aa5b1','#3d8bd9','#23a88f','#f0a92a','#e2603a','#a957c4','#5257d1'];
 const degCol=d=>DEG[Math.min(d,DEG.length-1)];
-const PANEL={x:566,y:14,w:220,h:214};
+const PANEL={x:566,y:14,w:220,h:180};
 /* chapters: [first level, name]; each one after Basics brings in a rule */
 const CHAPTERS=[[1,"Basics"],[14,"Pruning"],[22,"Smoothing"],[32,"Twins"],[44,"Flips"],[58,"Stars"],[70,"Folds"],[82,"Grand lab"]];
 const chapterOf=i=>CHAPTERS.filter(c=>c[0]<=i+1).pop();
@@ -509,7 +509,7 @@ function buildRules(){
     const c=document.createElement('canvas');c.width=120;c.height=48;icon(c.getContext('2d'),rid);
     b.appendChild(c);const sp=document.createElement('span');sp.innerHTML=`${RULES[rid].name}<kbd>${i+1}</kbd>`;b.appendChild(sp);
     b.onclick=()=>pickRule(rid);el.appendChild(b);});
-  $('#hint').textContent=dead&&!hintMsg?'Dead end: the target can no longer be reached from here. Undo with Z.':hintMsg||(L.tip&&movesN===0?L.tip:rule?RULES[rule].hint+'.':'Pick a rule below, or click straight on the board when only one rule fits.');
+  $('#hint').textContent=dead&&!hintMsg?'Dead end: the target can no longer be reached from here. Undo with Z.':hintMsg||(L.tip&&movesN===0?L.tip:rule?RULES[rule].hint+'.':'Pick a rule, or click the board.');
   $('#hint').classList.toggle('warn',dead);
 }
 function pickRule(rid){rule=rule===rid?null:rid;picks=[];hint=null;hintMsg='';buildRules();}
@@ -601,9 +601,8 @@ $('#bUndo').onclick=undo;$('#bReset').onclick=restart;
 $('#ovRetry').onclick=restart;$('#ovNext').onclick=()=>li<0?newLab(L.lab):load(li+1);
 
 /* drawing */
-/* a node shows its link count both as colour and as a digit */
+/* a node's colour is its link count */
 function node(c,x,y,r,d,ring){c.fillStyle='rgba(20,35,55,.15)';c.beginPath();c.arc(x+1.5,y+2.5,r,0,7);c.fill();c.fillStyle=degCol(d);c.beginPath();c.arc(x,y,r,0,7);c.fill();c.lineWidth=r>9?2.5:1.5;c.strokeStyle='#fff';c.stroke();
-  if(r>=6.5){c.fillStyle='#fff';c.font=`700 ${Math.round(r*1.15)}px Fredoka, system-ui, sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(d,x,y+r*.07);}
   if(ring){c.strokeStyle=ring;c.lineWidth=3;c.beginPath();c.arc(x,y,r+6,0,7);c.stroke();}}
 function icon(c,rid){
   c.clearRect(0,0,120,48);const ln=(a,b,col='#1d2a3a',w=2.5)=>{c.strokeStyle=col;c.lineWidth=w;c.beginPath();c.moveTo(...a);c.lineTo(...b);c.stroke();};
@@ -668,17 +667,9 @@ function render(now){
   // target card
   const P=PANEL;g.fillStyle='rgba(255,255,255,.94)';g.strokeStyle='#cfd8e1';g.lineWidth=1.5;g.beginPath();g.roundRect(P.x,P.y,P.w,P.h,12);g.fill();g.stroke();
   g.font='600 13px Fredoka, system-ui, sans-serif';g.fillStyle='#6b7a8b';g.textAlign='left';g.textBaseline='middle';g.fillText('TARGET',P.x+12,P.y+15);
-  const TN=nbrs(L.target),tc=[P.x+P.w/2,P.y+84],ts=110;
+  const TN=nbrs(L.target),tc=[P.x+P.w/2,P.y+100],ts=110;
   for(const [a,b] of edgesOf(L.target)){const [ax,ay]=tlay.get(a),[bx,by]=tlay.get(b);g.strokeStyle='#1d2a3a';g.lineWidth=2.2;g.beginPath();g.moveTo(tc[0]+ax*ts,tc[1]+ay*ts);g.lineTo(tc[0]+bx*ts,tc[1]+by*ts);g.stroke();}
   for(const v of L.target.V){const [x,y]=tlay.get(v);node(g,tc[0]+x*ts,tc[1]+y*ts,8,TN.get(v).size);}
-  const cnt=gg=>{const m=new Map(),NN=nbrs(gg);for(const v of gg.V){const d=NN.get(v).size;m.set(d,(m.get(d)||0)+1);}return m;},cy=cnt(gr),ct=cnt(L.target);
-  const degs=[...new Set([...cy.keys(),...ct.keys()])].sort((a,b)=>a-b),cw=Math.min(52,(P.w-16)/Math.max(1,degs.length)),y0=P.y+P.h-36;
-  g.strokeStyle='#e3e9ef';g.lineWidth=1;g.beginPath();g.moveTo(P.x+10,y0-12);g.lineTo(P.x+P.w-10,y0-12);g.stroke();
-  const tight=degs.length>4;// five or more colours: smaller dots and digits so the row fits the card
-  degs.forEach((d,i)=>{const x=P.x+(tight?20:28)+cw*i,a=cy.get(d)||0,b=ct.get(d)||0,good=a===b;
-    node(g,x-(tight?8:11),y0+4,tight?6.5:7.5,d);g.font=`600 ${tight?11:13}px Fredoka, system-ui, sans-serif`;g.textAlign='left';g.fillStyle=good?'#23a88f':'#1d2a3a';g.fillText(`${a}/${b}`,x+(tight?0:1),y0+4);});
-  const allOk=degs.every(d=>(cy.get(d)||0)===(ct.get(d)||0));
-  g.font='600 11px Fredoka, system-ui, sans-serif';g.textAlign='left';g.fillStyle=allOk?'#23a88f':'#6b7a8b';g.fillText(allOk?'colours match ✓':'colour counts, you / target',P.x+12,y0+24);
   requestAnimationFrame(render);
 }
 load(0);requestAnimationFrame(render);
