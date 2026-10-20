@@ -103,7 +103,7 @@ canvas#board{display:block;width:100%;height:100%;touch-action:none;cursor:point
     <div class="rules" id="rules"></div>
     <p id="hint"></p>
     <div class="stats"><div class="stat"><b id="sMoves">0</b><span>moves</span></div><div class="stat"><b id="sBest">0</b><span>fewest</span></div></div>
-    <div class="group"><button id="bHint">Hint</button><button id="bUndo">Undo</button><button id="bReset">Reset</button></div>
+    <div class="group"><button id="bMute" title="Sound (M)">Sound on</button><button id="bHint">Hint</button><button id="bUndo">Undo</button><button id="bReset">Reset</button></div>
   </footer>
 </div>
 
@@ -453,6 +453,22 @@ if(save.v<8){for(const k of [15,16,17,18,19,20,23,24,25,26,27,28,29,30,33,35,36,
 /* v9 swapped level 24 for a medium one and re-sorted Masters by difficulty */
 if(save.v<9){for(const k of [23,100,101,103,104,105,106,107,108,109])delete save.stars[k];save.v=9;}
 function persist(){try{localStorage.setItem('rewrite-save',JSON.stringify(save));}catch(e){}}
+/* sound: tiny synth, no audio files */
+let ac=null;
+function tone(f,dur,{type='sine',vol=.1,to=f,delay=0}={}){
+  if(save.muted)return;try{ac=ac||new AudioContext();const t0=ac.currentTime+delay,o=ac.createOscillator(),v=ac.createGain();
+    o.type=type;o.frequency.setValueAtTime(f,t0);o.frequency.exponentialRampToValueAtTime(to,t0+dur);
+    v.gain.setValueAtTime(vol,t0);v.gain.exponentialRampToValueAtTime(.001,t0+dur);o.connect(v).connect(ac.destination);o.start(t0);o.stop(t0+dur);}catch(e){}
+}
+const SFX={
+  pick:()=>tone(660,.06,{type:'triangle',vol:.07}),
+  rule:()=>tone(880,.04,{type:'square',vol:.025}),
+  move:()=>{tone(392,.12,{type:'triangle',to:587,vol:.08});tone(784,.1,{type:'sine',vol:.04,delay:.05});},
+  nope:()=>tone(170,.12,{type:'square',vol:.035}),
+  undo:()=>tone(587,.1,{type:'triangle',to:392,vol:.06}),
+  win:n=>[523,659,784,1047].slice(0,n+1).forEach((f,i)=>tone(f,.45,{type:'triangle',vol:.09,delay:i*.09})),
+};
+function setMute(m){save.muted=m;persist();$('#bMute').textContent=m?'Sound off':'Sound on';}
 
 /* ---------- solver worker: level maps (instant hints) and Lab puzzles, off the main thread ---------- */
 function job(m){
@@ -539,8 +555,8 @@ function buildRules(){
     b.onclick=()=>pickRule(rid);el.appendChild(b);});
   $('#hint').textContent=hintMsg||(L.tip&&movesN===0?L.tip:rule?RULES[rule].hint+'.':'Pick a rule, or click the board.');
 }
-function pickRule(rid){rule=rule===rid?null:rid;picks=[];hint=null;hintMsg='';buildRules();}
-const load=i=>play(LEVELS[i],i);
+function pickRule(rid){SFX.rule();rule=rule===rid?null:rid;picks=[];hint=null;hintMsg='';buildRules();}
+const load=i=>{if(save.last!==i){save.last=i;persist();}play(LEVELS[i],i);};
 /* start a level: a campaign one (index i) or a Lab puzzle (i = -1) */
 function play(lvl,i){
   li=i;L=lvl;gr={next:L.start.next,V:L.start.V.slice(),E:new Set(L.start.E)};
@@ -554,7 +570,7 @@ const restart=()=>play(L,li);
 /* the level map knows every shape that can still reach the target */
 function updateHud(){$('#sMoves').textContent=movesN;$('#sBest').textContent=bestOf(L);}
 function snapshot(){return {gr:{next:gr.next,V:gr.V.slice(),E:new Set(gr.E)},pos:new Map([...pos].map(([k,p])=>[k,{...p}])),movesN};}
-function undo(){if(won||!hist.length)return;const s=hist.pop();gr=s.gr;pos=s.pos;movesN=s.movesN;picks=[];hint=null;hintMsg='';updateHud();buildRules();}
+function undo(){if(won||!hist.length)return;SFX.undo();const s=hist.pop();gr=s.gr;pos=s.pos;movesN=s.movesN;picks=[];hint=null;hintMsg='';updateHud();buildRules();}
 function apply(){
   hist.push(snapshot());
   const h=RULES[rule].apply(gr,picks);
@@ -562,7 +578,7 @@ function apply(){
     const ang=Math.random()*6.28,off=near.length===1?46:12;pos.set(h.born,{x:mx+Math.cos(ang)*off,y:my+Math.sin(ang)*off,vx:0,vy:0,pop:performance.now()});}
   if(h.merged){const [a,b]=h.merged,p=pos.get(a),q=pos.get(b);p.x=(p.x+q.x)/2;p.y=(p.y+q.y)/2;p.pop=performance.now();pos.delete(b);}
   for(const v of [...pos.keys()])if(!h.V.includes(v))pos.delete(v);
-  gr={next:h.next,V:h.V,E:h.E};movesN++;picks=[];hint=null;hintMsg='';updateHud();
+  SFX.move();gr={next:h.next,V:h.V,E:h.E};movesN++;picks=[];hint=null;hintMsg='';updateHud();
   const m=iso(gr,L.target);
   if(!m)buildRules();
   if(m){won=true;rule=null;buildRules();
@@ -574,7 +590,7 @@ function finish(){
   if(li>=0){if(n>(save.stars[li]||0))save.stars[li]=n;}
   else{const r=save.lab[L.lab]||(save.lab[L.lab]={solved:0,perfect:0});r.solved++;if(n===3)r.perfect++;}
   persist();buildLevels();
-  if(n===3)burst();
+  if(n===3)burst();SFX.win(n);
   $('#ovTitle').textContent=movesN<=best?'Perfect!':'Same shape!';
   $('#ovStars').innerHTML=[0,1,2].map(k=>`<span class="${k<n?'on':''}" style="animation-delay:${.15+k*.18}s">★</span>`).join('');
   const goals=[[true,'Match the target'],[movesN<=best+2,`${best+2} moves or fewer`],[movesN<=best,`${best} moves, the fewest possible`]];
@@ -605,9 +621,10 @@ function click(x,y){
   const done=completions(gr,rule,picks.concat([c]));
   if(!done.length){flash(x,y);return;}
   picks.push(c);
+  if(done.length>1)SFX.pick();
   if(done.length===1){picks=done[0];apply();}// only one way to finish: do it now
 }
-function flash(x,y){bad={x,y,t:performance.now()};}
+function flash(x,y){bad={x,y,t:performance.now()};SFX.nope();}
 cv.addEventListener('pointerdown',e=>{const [x,y]=pt(e),v=nodeAt(x,y);drag={v,x0:x,y0:y,moved:false};cv.setPointerCapture(e.pointerId);});
 cv.addEventListener('pointerleave',()=>{hover=null;});
 cv.addEventListener('pointermove',e=>{hover=pt(e);if(!drag||drag.v===null||won)return;const [x,y]=pt(e);if(!drag.moved&&Math.hypot(x-drag.x0,y-drag.y0)<6)return;drag.moved=true;const p=pos.get(drag.v);if(p){p.x=x;p.y=y;p.vx=p.vy=0;}});
@@ -615,14 +632,14 @@ cv.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;if(!d
 cv.addEventListener('contextmenu',e=>{e.preventDefault();picks=[];});
 addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.repeat)return;const k=e.key.toLowerCase();
   if(k==='escape'){picks=[];$('#lvgrid').hidden=true;$('#labp').hidden=true;}else if(k==='z'||k==='backspace')undo();else if(k==='r')restart();
-  else if(k==='h')showHint();else if(k>='1'&&k<='9'&&+k<=L.rules.length)pickRule(L.rules[+k-1]);});
+  else if(k==='h')showHint();else if(k==='m')setMute(!save.muted);else if(k>='1'&&k<='9'&&+k<=L.rules.length)pickRule(L.rules[+k-1]);});
 /* the next move on a shortest route, read straight off the level map */
 function showHint(){if(won)return;
   if(!dist){hintMsg='Still mapping this level, try again in a moment.';buildRules();return;}
   const left=dist.get(hash(gr));if(left===undefined){hintMsg='No hint from here. Undo and try another way.';buildRules();return;}
   for(const r of L.rules)for(const p of moves(gr,r)){const h=RULES[r].apply(gr,p);if(h.V.length>capOf(L)||dist.get(hash(h))!==left-1)continue;
     rule=r;picks=[];hint=p;hintMsg=`Next: ${RULES[r].name} on the glowing ${RULES[r].picks[0]==='edge'?'link':'nodes'}. ${left} move${left>1?'s':''} to go.`;buildRules();return;}}
-$('#bHint').onclick=showHint;
+$('#bHint').onclick=showHint;$('#bMute').onclick=()=>setMute(!save.muted);
 $('#bUndo').onclick=undo;$('#bReset').onclick=restart;
 $('#ovRetry').onclick=restart;$('#ovNext').onclick=()=>li<0?newLab(L.lab):load(li+1);
 
@@ -710,7 +727,7 @@ function render(now){
   for(const v of L.target.V){const [x,y]=tlay.get(v);node(g,tc[0]+x*ts,tc[1]+y*ts,8,TN.get(v).size);}
   requestAnimationFrame(render);
 }
-load(0);requestAnimationFrame(render);
+setMute(!!save.muted);load(Math.min(save.last||0,LEVELS.length-1));requestAnimationFrame(render);
 </script>
 </body>
 </html>
