@@ -1,5 +1,11 @@
 # Rewrite Lab
 
+### ▶ [Play Rewrite Lab in your browser](https://louisvandenbruwaene.github.io/rewrite-lab/)
+
+No install, no account: open the link and play. Click the highlighted nodes to apply a rewrite rule, until your graph matches the target. The first levels show each rule.
+
+[![Rewrite Lab: the first puzzle and its target triangle](screenshot.png)](https://louisvandenbruwaene.github.io/rewrite-lab/)
+
 Rewrite Lab: rewrite a graph into the target shape. One self-contained HTML file, no build step: open [`index.html`](index.html).
 
 ## Play on this Mac
