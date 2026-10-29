@@ -30,7 +30,7 @@ Each rule is named for the graph operation it is: Closure (triadic closure), Pen
 ## How it plays
 
 - A worker maps each level when it opens: every shape that can still reach the target and how far it is. Hints read the next move straight off that map.
-- Everything sits on one screen: the board scales to the window, rules, hint, counts and buttons share one dock row.
+- Everything sits on one screen: the board scales to the window and turns upright on a phone held upright, the move counts and sound sit in the header, and rules, hint and buttons share one fixed dock row. Enter goes on from the result card.
 - Clicking is forgiving: a move that can only finish one way happens on the first click (a Star often needs one click, not three), a click with no rule chosen uses the only rule that fits there, a node's colour is its link count, and hit areas are generous.
 - Each chapter opens with a short, easy level for its new rule, then a gentle practice level, before the curve climbs again.
 - **The Lab** mixes fresh puzzles on the spot (Lemma, Proposition, Theorem) from the rules the player has met, under the same quality rules as the campaign.

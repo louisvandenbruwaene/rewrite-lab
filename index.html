@@ -24,7 +24,7 @@ body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:1
 .app{height:100vh;height:100dvh;max-width:1400px;margin:0 auto;padding:10px 16px 12px;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:10px}
 .mid{min-height:0;min-width:0;display:grid;place-items:center}
 .top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
-.title{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;min-width:0}
+.title{flex:1 1 auto;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;min-width:0}
 h1{font-family:var(--f-display);font-weight:700;font-size:26px;margin:0;letter-spacing:-.01em}
 #lvname{font-family:var(--f-display);font-weight:500;font-size:17px;color:var(--muted)}
 .levels{display:flex;gap:6px;align-items:center}
@@ -51,17 +51,21 @@ button.primary{background:var(--accent);color:#fff;box-shadow:0 3px 0 #a8401f}
 .lv.cur{background:var(--ink);color:#fff;box-shadow:0 3px 0 #0b121b}.lv.cur small{color:#f0a92a}
 .stage{position:relative;border-radius:14px;overflow:hidden;border:2px solid var(--line);background:#f7f9fb;width:800px;height:500px}
 canvas#board{display:block;width:100%;height:100%;touch-action:none;cursor:pointer}
-.dock{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
+.dock{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px 16px;min-height:50px}
 .rules{display:flex;gap:6px;flex-wrap:wrap}
 .rule{display:flex;align-items:center;gap:6px;padding:5px 10px 5px 6px}
 .rule canvas{width:85px;height:34px}
 .rule span{font-size:15px}.rule kbd{font-family:var(--f-display);font-size:11px;color:var(--muted);margin-left:5px}
 .rule.sel{box-shadow:0 0 0 3px var(--accent) inset,0 3px 0 #b9c5d1}
-#hint{color:var(--muted);margin:0;min-width:0;flex:1 1 220px;font-size:14px;line-height:1.3}
+#hint{color:var(--muted);margin:0;min-width:0;font-size:14px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .stats{display:flex;gap:18px;font-family:var(--f-display);font-variant-numeric:tabular-nums}
 .stat{display:grid;line-height:1.1;text-align:center}.stat b{font-size:20px;font-weight:600}
 .stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 .group{display:flex;gap:6px;align-items:center}
+button.icon{width:40px;height:40px;padding:0;display:grid;place-items:center}button.icon svg{width:20px;height:20px}
+@media (max-width:1180px){.rule canvas{width:64px;height:26px}}
+@media (max-height:480px){h1{display:none}.app{padding:6px 12px 8px;gap:6px}button{padding:6px 10px}button.icon{height:34px}}
+@media (max-width:760px){.dock{display:flex;flex-wrap:wrap}#hint{flex:1 1 100%}.top{gap:8px 12px}}
 .overlay{position:absolute;inset:0;display:grid;place-items:center;background:rgba(29,42,58,.35);padding:16px}
 .res{background:var(--panel);border:2px solid var(--line);padding:20px 26px;border-radius:16px;text-align:center;display:grid;gap:12px;min-width:min(320px,100%)}
 .res h2{font-family:var(--f-display);font-size:28px;margin:0}
@@ -73,14 +77,15 @@ canvas#board{display:block;width:100%;height:100%;touch-action:none;cursor:point
 .res .group{justify-content:center}
 @keyframes pop{0%{transform:scale(0) rotate(-40deg)}100%{transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){.stars span.on{animation:none}}
-@media (max-width:560px){h1{font-size:20px}#lvname{font-size:14px}.rule canvas{width:52px;height:21px}.rule span{font-size:13px}.rule kbd{display:none}.chrow{grid-template-columns:1fr}}
+@media (max-width:560px){h1{font-size:20px}.levels{gap:4px}.levels button{padding:8px 9px}#lvPick{min-width:0;white-space:nowrap;font-size:14px}#lvPick small{margin-left:5px}button.icon{width:36px}.title{flex:1 1 0}.stats{gap:12px}#lvname{font-size:14px}.rule canvas{width:52px;height:21px}.rule span{font-size:13px}.rule kbd{display:none}.chrow{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
 <div class="app">
   <div class="top">
     <div class="title"><h1>Rewrite Lab</h1><span id="lvname"></span></div>
-    <div class="levels" id="levels"></div>
+    <div class="stats"><div class="stat"><b id="sMoves">0</b><span>moves</span></div><div class="stat"><b id="sBest">0</b><span>fewest</span></div></div>
+    <div class="levels"><div class="levels" id="levels"></div><button id="bMute" class="icon" title="Sound (M)" aria-label="Sound"></button></div>
   </div>
   <main class="mid" id="mid"><div class="stage" id="stage">
     <canvas id="board" width="800" height="500" aria-label="Graph board. Pick a rule, then click nodes or links where it applies."></canvas>
@@ -95,15 +100,14 @@ canvas#board{display:block;width:100%;height:100%;touch-action:none;cursor:point
         <h2 id="ovTitle"></h2>
         <div class="stars" id="ovStars"></div>
         <div class="goals" id="ovGoals"></div>
-        <div class="group"><button id="ovRetry">Again</button><button class="primary" id="ovNext">Next</button></div>
+        <div class="group"><button id="ovRetry">Again</button><button class="primary" id="ovNext" title="Enter">Next</button></div>
       </div>
     </div>
   </div></main>
   <footer class="dock">
     <div class="rules" id="rules"></div>
     <p id="hint"></p>
-    <div class="stats"><div class="stat"><b id="sMoves">0</b><span>moves</span></div><div class="stat"><b id="sBest">0</b><span>fewest</span></div></div>
-    <div class="group"><button id="bMute" title="Sound (M)">Sound on</button><button id="bHint">Hint</button><button id="bUndo">Undo</button><button id="bReset">Reset</button></div>
+    <div class="group"><button id="bHint">Hint</button><button id="bUndo">Undo</button><button id="bReset">Reset</button></div>
   </footer>
 </div>
 
@@ -423,18 +427,52 @@ if(typeof module!=='undefined')module.exports={LEVELS,RULES,SH,moves,completions
 </script>
 
 <script>
-/* ---------- game ---------- */
-const $=s=>document.querySelector(s);
-const cv=$('#board'),g=cv.getContext('2d'),W=800,H=500,DPR=Math.min(2,window.devicePixelRatio||1);
-/* the bench keeps 8:5 and fills the space between header and dock; the canvas draws at its real pixel size */
-let scale=1;
-function fit(){const m=$('#mid').getBoundingClientRect(),w=Math.max(280,Math.min(m.width,m.height*W/H)),st=$('#stage');
-  st.style.width=w+'px';st.style.height=w*H/W+'px';scale=w/W;cv.width=Math.round(w*DPR);cv.height=Math.round(w*H/W*DPR);}
-new ResizeObserver(fit).observe($('#mid'));fit();
-const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+/* ---------- 1. settings: every number that shapes the board, the feel and the look ---------- */
+/* The board is a logical drawing space that scales to the window. A wide window gets the landscape bench, a tall one
+   (a phone held upright) the portrait bench, so the graph uses the screen instead of a thin strip. */
+const BOARD_LAYOUTS={
+  landscape:{width:800,height:500,graphCentre:[300,280],winCentre:[300,270]},
+  portrait:{width:500,height:760,graphCentre:[250,470],winCentre:[250,470]},
+};
+const PORTRAIT_WHEN_TALLER_THAN=1.05;   // portrait board once the free space is this much taller than wide
+const SMALLEST_BOARD_PIXELS=280;        // the board never shrinks below this width on screen
+const TARGET_CARD={width:220,height:180,margin:14,drawingSize:110};  // pinned top right; drawingSize = the target's widest extent
+const LINK_REST_LENGTH=88;              // preferred link length on the board, before denser graphs stretch it
+const START_DRAWING_SIZE=300;           // a classic start drawing (extent 1) is scaled to this many board units
+const WIN_DRAWING_SIZE=260;             // on a win the graph morphs into the target drawing at this size
+const NODE_RADIUS=13;                   // board node radius
+const NODE_HIT_RADIUS=26;               // a click this close picks a node
+const LINK_HIT_DISTANCE=14;             // a click this close to a link (away from its ends) picks the link
+const DRAG_START_DISTANCE=6;            // the pointer must move this far before a press becomes a drag
+const NEW_NODE_POP_MS=350;              // a new or merged node swells for this long
+const BAD_CLICK_FLASH_MS=350;           // a click that does nothing shows a fading ring for this long
+const WIN_MORPH_MS=900;                 // the graph glides into the target drawing over this long
+const RESULT_CARD_DELAY_MS=250;         // pause after the morph before the result card
+const CONFETTI_PIECES=70, CONFETTI_MS=1600;
+const EVEN_ANGLE_PUSH=3;                // strength of the even-angles push in relax
+/* a node's colour is its link count: grey 0, blue 1, teal 2, gold 3, orange 4, purple 5, indigo 6+ */
 const DEG=['#9aa5b1','#3d8bd9','#23a88f','#f0a92a','#e2603a','#a957c4','#5257d1'];
+
+/* ---------- 2. game ---------- */
+const $=s=>document.querySelector(s);
+const cv=$('#board'),g=cv.getContext('2d'),DPR=Math.min(2,window.devicePixelRatio||1);
+/* current board: logical size, where graphs settle, the target card; fit() switches them with the window's shape */
+let boardShape='landscape',W=BOARD_LAYOUTS.landscape.width,H=BOARD_LAYOUTS.landscape.height,PANEL=null,scale=1;
+function useBoardShape(shape){const B=BOARD_LAYOUTS[shape];boardShape=shape;W=B.width;H=B.height;
+  PANEL={x:W-TARGET_CARD.width-TARGET_CARD.margin,y:TARGET_CARD.margin,w:TARGET_CARD.width,h:TARGET_CARD.height};}
+useBoardShape(boardShape);
+const graphCentre=()=>BOARD_LAYOUTS[boardShape].graphCentre;
+/* the bench keeps its shape's aspect and fills the space between header and dock; the canvas draws at its real pixel size.
+   Switching shape mid-level slides the graph to the new centre, and relax pulls it into the new bounds. */
+function fit(){const m=$('#mid').getBoundingClientRect(),shape=m.height>m.width*PORTRAIT_WHEN_TALLER_THAN?'portrait':'landscape';
+  if(shape!==boardShape){const [ox,oy]=graphCentre();useBoardShape(shape);const [nx,ny]=graphCentre();
+    const slide=([x,y])=>[x+nx-ox,y+ny-oy];
+    if(pos)for(const p of pos.values())[p.x,p.y]=slide([p.x,p.y]);
+    if(morph)for(const M of [morph.from,morph.to])for(const [v,xy] of M)M.set(v,slide(xy));}
+  const w=Math.max(SMALLEST_BOARD_PIXELS,Math.min(m.width,m.height*W/H)),st=$('#stage');
+  st.style.width=w+'px';st.style.height=w*H/W+'px';scale=w/W;cv.width=Math.round(w*DPR);cv.height=Math.round(w*H/W*DPR);}
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
 const degCol=d=>DEG[Math.min(d,DEG.length-1)];
-const PANEL={x:566,y:14,w:220,h:180};
 /* chapters: [first level, name]; each one after Axioms brings in a rule */
 const CHAPTERS=[[1,"Axioms"],[14,"Pruning"],[22,"Homeomorphism"],[32,"False Twins"],[44,"Complements"],[58,"Delta-Wye"],[70,"Wye-Delta"],[82,"Grand Unification"],[101,"Erdős Problems"]];
 const chapterOf=i=>CHAPTERS.filter(c=>c[0]<=i+1).pop();
@@ -468,7 +506,10 @@ const SFX={
   undo:()=>tone(587,.1,{type:'triangle',to:392,vol:.06}),
   win:n=>[523,659,784,1047].slice(0,n+1).forEach((f,i)=>tone(f,.45,{type:'triangle',vol:.09,delay:i*.09})),
 };
-function setMute(m){save.muted=m;persist();$('#bMute').textContent=m?'Sound off':'Sound on';}
+/* speaker icon, with a cross when muted */
+const SPEAKER='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9h4l5-4v14l-5-4H4z" fill="currentColor"/>';
+function setMute(m){save.muted=m;persist();const b=$('#bMute');b.setAttribute('aria-pressed',String(!m));
+  b.innerHTML=SPEAKER+(m?'<path d="M17 9l5 6M22 9l-5 6"/></svg>':'<path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>');}
 
 /* ---------- solver worker: level maps (instant hints) and Lab puzzles, off the main thread ---------- */
 function job(m){
@@ -482,8 +523,7 @@ try{worker=new Worker(URL.createObjectURL(new Blob([$('#sim').textContent,`;${jo
 function ask(m,cb){m.token=++jobs;waiting.set(m.token,[m,cb]);if(worker)worker.postMessage(m);else runLocal();}
 
 /* force layout */
-const ANG=3;// strength of the even-angles push in relax
-function relax(gg,P,iters,cx,cy,rest=72,pinned=null,board=true){
+function relax(gg,P,iters,cx,cy,rest=LINK_REST_LENGTH,pinned=null,board=true){
   const N=nbrs(gg);if(board)rest*=Math.max(1,Math.sqrt(gg.E.size/gg.V.length/1.2));
   for(let it=0;it<iters;it++){
     // spread the links around each node: neighbours closer than an even share of the circle are pushed apart sideways,
@@ -492,7 +532,7 @@ function relax(gg,P,iters,cx,cy,rest=72,pinned=null,board=true){
     for(const a of gg.V){const ns=[...N.get(a)];if(ns.length<2)continue;const p=P.get(a),even=2*Math.PI/ns.length;
       const th=ns.map(b=>{const q=P.get(b);return [b,Math.atan2(q.y-p.y,q.x-p.x),Math.hypot(q.x-p.x,q.y-p.y)+1];}).sort((x,y)=>x[1]-y[1]);
       th.forEach(([b,t,rb],i)=>{const [c,u,rc]=th[(i+1)%th.length],gap=((u-t)%(2*Math.PI)+2*Math.PI)%(2*Math.PI);if(gap>=even)return;
-        const f=ANG*(even-gap)*rest,fb=[Math.sin(t)*f/rb,-Math.cos(t)*f/rb],fc=[-Math.sin(u)*f/rc,Math.cos(u)*f/rc],ta=T.get(a);
+        const f=EVEN_ANGLE_PUSH*(even-gap)*rest,fb=[Math.sin(t)*f/rb,-Math.cos(t)*f/rb],fc=[-Math.sin(u)*f/rc,Math.cos(u)*f/rc],ta=T.get(a);
         T.get(b)[0]+=fb[0];T.get(b)[1]+=fb[1];T.get(c)[0]+=fc[0];T.get(c)[1]+=fc[1];ta[0]-=fb[0]+fc[0];ta[1]-=fb[1]+fc[1];});}
     for(const a of gg.V){const p=P.get(a);let fx=(cx-p.x)*.004+T.get(a)[0],fy=(cy-p.y)*.004+T.get(a)[1];
       for(const b of gg.V){if(a===b)continue;const q=P.get(b),dx=p.x-q.x,dy=p.y-q.y,d2=dx*dx+dy*dy+.01,d=Math.sqrt(d2);const f=2600/d2;fx+=dx/d*f;fy+=dy/d*f;}
@@ -513,13 +553,15 @@ function crossings(gg,P){const E=edgesOf(gg);let n=0;
     if(o(p,q,r)!==o(p,q,s)&&o(r,s,p)!==o(r,s,q))n++;}
   return n;}
 /* a shape's classic drawing when it has one, else a few seeded starting orders, keeping the relaxed layout with the fewest crossings */
-function targetLayout(t,drawing){if(drawing){const out=new Map();t.V.forEach((v,i)=>out.set(v,drawing[i]));return out;}
+function targetLayout(t,drawing){if(drawing)return normalised(new Map(t.V.map((v,i)=>[v,{x:drawing[i][0],y:drawing[i][1]}])));
   let P=null,best=Infinity,seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
   for(let k=0;k<40&&best>0;k++){const order=t.V.slice();if(k)for(let i=order.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[order[i],order[j]]=[order[j],order[i]];}
     const Q=new Map();order.forEach((v,i)=>{const a=-Math.PI/2+2*Math.PI*i/order.length;Q.set(v,{x:60*Math.cos(a),y:60*Math.sin(a),vx:0,vy:0});});
     relax(t,Q,600,0,0,60,null,false);const c=crossings(t,Q);if(c<best){best=c;P=Q;}}
-  let xs=[...P.values()].map(p=>p.x),ys=[...P.values()].map(p=>p.y);
-  const mx=(Math.min(...xs)+Math.max(...xs))/2,my=(Math.min(...ys)+Math.max(...ys))/2,s=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),1);
+  return normalised(P);}
+/* a layout centred on 0,0 with its widest extent 1, so every target fills the card the same way */
+function normalised(P){const xs=[...P.values()].map(p=>p.x),ys=[...P.values()].map(p=>p.y);
+  const mx=(Math.min(...xs)+Math.max(...xs))/2,my=(Math.min(...ys)+Math.max(...ys))/2,s=Math.max(Math.max(...xs)-Math.min(...xs),Math.max(...ys)-Math.min(...ys),1e-9);
   const out=new Map();for(const [v,p] of P)out.set(v,[(p.x-mx)/s,(p.y-my)/s]);return out;}
 
 /* level flow */
@@ -560,8 +602,9 @@ const load=i=>{if(save.last!==i){save.last=i;persist();}play(LEVELS[i],i);};
 /* start a level: a campaign one (index i) or a Lab puzzle (i = -1) */
 function play(lvl,i){
   li=i;L=lvl;gr={next:L.start.next,V:L.start.V.slice(),E:new Set(L.start.E)};
-  pos=new Map();for(const [v,[x,y]] of targetLayout(L.start,L.start.pos))pos.set(v,{x:300+x*300,y:280+y*300,vx:0,vy:0});
-  relax(gr,pos,L.start.pos?40:300,300,280);
+  const [cx,cy]=graphCentre();pos=new Map();
+  for(const [v,[x,y]] of targetLayout(L.start,L.start.pos))pos.set(v,{x:cx+x*START_DRAWING_SIZE,y:cy+y*START_DRAWING_SIZE,vx:0,vy:0});
+  relax(gr,pos,L.start.pos?40:300,cx,cy);
   tlay=targetLayout(L.target,L.target.pos);hist=[];movesN=0;hint=null;hintMsg='';rule=L.rules.length===1?L.rules[0]:null;picks=[];won=false;morph=null;dist=null;
   bestOf(L);ask({type:'map',L:{start:L.start,target:L.target,rules:L.rules,cap:capOf(L)}},r=>{if(lvl!==L)return;dist=r.dist;});
   $('#lvname').textContent=i<0?L.name:`${chapterOf(i)[1]} · ${L.name}`;$('#ov').hidden=true;$('#lvgrid').hidden=true;$('#labp').hidden=true;buildLevels();buildRules();updateHud();
@@ -582,7 +625,7 @@ function apply(){
   const m=iso(gr,L.target);
   if(!m)buildRules();
   if(m){won=true;rule=null;buildRules();
-    const s=260,cx=300,cy=270,from=new Map([...pos].map(([k,p])=>[k,[p.x,p.y]])),to=new Map();for(const [v,w] of m){const [tx,ty]=tlay.get(w);to.set(v,[cx+tx*s,cy+ty*s]);}
+    const s=WIN_DRAWING_SIZE,[cx,cy]=BOARD_LAYOUTS[boardShape].winCentre,from=new Map([...pos].map(([k,p])=>[k,[p.x,p.y]])),to=new Map();for(const [v,w] of m){const [tx,ty]=tlay.get(w);to.set(v,[cx+tx*s,cy+ty*s]);}
     morph={t0:performance.now(),from,to};}
 }
 function finish(){
@@ -598,13 +641,13 @@ function finish(){
   $('#ovNext').textContent=li<0?'New puzzle':'Next';$('#ovNext').hidden=li===LEVELS.length-1;$('#ov').hidden=false;
 }
 /* a perfect solve throws confetti in the link colours */
-function burst(){if(reduce)return;const t=performance.now();for(let k=0;k<70;k++){const a=Math.random()*Math.PI*2,v=3+Math.random()*6;
-  parts.push({x:300,y:260,vx:Math.cos(a)*v,vy:Math.sin(a)*v-4,c:DEG[1+k%6],t,r:3+Math.random()*3});}}
+function burst(){if(reduce)return;const t=performance.now(),[cx,cy]=BOARD_LAYOUTS[boardShape].winCentre;for(let k=0;k<CONFETTI_PIECES;k++){const a=Math.random()*Math.PI*2,v=3+Math.random()*6;
+  parts.push({x:cx,y:cy-10,vx:Math.cos(a)*v,vy:Math.sin(a)*v-4,c:DEG[1+k%6],t,r:3+Math.random()*3});}}
 
 /* picking */
 function pt(e){const r=cv.getBoundingClientRect();return [(e.clientX-r.left)/r.width*W,(e.clientY-r.top)/r.height*H];}
-function nodeAt(x,y){let best=null,bd=26;for(const v of gr.V){const p=pos.get(v),d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;best=v;}}return best;}
-function edgeAt(x,y){let best=null,bd=14;for(const [a,b] of edgesOf(gr)){const p=pos.get(a),q=pos.get(b),ex=q.x-p.x,ey=q.y-p.y,l2=ex*ex+ey*ey||1,u=Math.max(0,Math.min(1,((x-p.x)*ex+(y-p.y)*ey)/l2)),d=Math.hypot(p.x+ex*u-x,p.y+ey*u-y);
+function nodeAt(x,y){let best=null,bd=NODE_HIT_RADIUS;for(const v of gr.V){const p=pos.get(v),d=Math.hypot(p.x-x,p.y-y);if(d<bd){bd=d;best=v;}}return best;}
+function edgeAt(x,y){let best=null,bd=LINK_HIT_DISTANCE;for(const [a,b] of edgesOf(gr)){const p=pos.get(a),q=pos.get(b),ex=q.x-p.x,ey=q.y-p.y,l2=ex*ex+ey*ey||1,u=Math.max(0,Math.min(1,((x-p.x)*ex+(y-p.y)*ey)/l2)),d=Math.hypot(p.x+ex*u-x,p.y+ey*u-y);
   if(d<bd&&u>.12&&u<.88){bd=d;best=[a,b];}}return best;}
 const nextKind=()=>rule?RULES[rule].picks[picks.length]:null;
 /* c may be picked next when some way to finish the move starts with it */
@@ -627,10 +670,11 @@ function click(x,y){
 function flash(x,y){bad={x,y,t:performance.now()};SFX.nope();}
 cv.addEventListener('pointerdown',e=>{const [x,y]=pt(e),v=nodeAt(x,y);drag={v,x0:x,y0:y,moved:false};cv.setPointerCapture(e.pointerId);});
 cv.addEventListener('pointerleave',()=>{hover=null;});
-cv.addEventListener('pointermove',e=>{hover=pt(e);if(!drag||drag.v===null||won)return;const [x,y]=pt(e);if(!drag.moved&&Math.hypot(x-drag.x0,y-drag.y0)<6)return;drag.moved=true;const p=pos.get(drag.v);if(p){p.x=x;p.y=y;p.vx=p.vy=0;}});
+cv.addEventListener('pointermove',e=>{hover=pt(e);if(!drag||drag.v===null||won)return;const [x,y]=pt(e);if(!drag.moved&&Math.hypot(x-drag.x0,y-drag.y0)<DRAG_START_DISTANCE)return;drag.moved=true;const p=pos.get(drag.v);if(p){p.x=x;p.y=y;p.vx=p.vy=0;}});
 cv.addEventListener('pointerup',e=>{if(!drag)return;const d=drag;drag=null;if(!d.moved)click(d.x0,d.y0);});
 cv.addEventListener('contextmenu',e=>{e.preventDefault();picks=[];});
 addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||e.repeat)return;const k=e.key.toLowerCase();
+  if(k==='enter'&&!$('#ov').hidden){e.preventDefault();(!$('#ovNext').hidden?$('#ovNext'):$('#ovRetry')).click();return;}// result card: Enter goes on
   if(k==='escape'){picks=[];$('#lvgrid').hidden=true;$('#labp').hidden=true;}else if(k==='z'||k==='backspace')undo();else if(k==='r')restart();
   else if(k==='h')showHint();else if(k==='m')setMute(!save.muted);else if(k>='1'&&k<='9'&&+k<=L.rules.length)pickRule(L.rules[+k-1]);});
 /* the next move on a shortest route, read straight off the level map */
@@ -687,17 +731,17 @@ function previewMove(h,gp){
   g.lineCap='butt';
   const gone=gr.V.filter(v=>!h.V.includes(v)),changed=h.V.filter(v=>!P.has(v)&&N.get(v).size!==HN.get(v).size);
   return {ids:[...gone,...changed,...(h.merged?[h.merged[0]]:[])],draw:()=>{
-    for(const v of changed)node(g,...gp(v),13,HN.get(v).size,null);
-    for(const [v,p] of P)node(g,...p,13,HN.get(v).size,'rgba(35,168,143,.95)');}};}
+    for(const v of changed)node(g,...gp(v),NODE_RADIUS,HN.get(v).size,null);
+    for(const [v,p] of P)node(g,...p,NODE_RADIUS,HN.get(v).size,'rgba(35,168,143,.95)');}};}
 function render(now){
   g.setTransform(DPR*scale,0,0,DPR*scale,0,0);
   g.fillStyle='#f7f9fb';g.fillRect(0,0,W,H);
   g.strokeStyle='#e3e9ef';g.lineWidth=1;for(let x=0;x<W;x+=25){g.beginPath();g.moveTo(x,0);g.lineTo(x,H);g.stroke();}for(let y=0;y<H;y+=25){g.beginPath();g.moveTo(0,y);g.lineTo(W,y);g.stroke();}
   // morph to the target's layout on a win
-  if(morph){const u=Math.min(1,(now-morph.t0)/(reduce?1:900)),e=u<.5?2*u*u:1-2*(1-u)*(1-u);
+  if(morph){const u=Math.min(1,(now-morph.t0)/(reduce?1:WIN_MORPH_MS)),e=u<.5?2*u*u:1-2*(1-u)*(1-u);
     for(const [v,[fx,fy]] of morph.from){const [tx,ty]=morph.to.get(v),p=pos.get(v);p.x=fx+(tx-fx)*e;p.y=fy+(ty-fy)*e;}
-    if(u>=1&&!morph.done){morph.done=true;setTimeout(finish,250);}}
-  else relax(gr,pos,1,300,280,72,drag&&drag.moved?drag.v:null);
+    if(u>=1&&!morph.done){morph.done=true;setTimeout(finish,RESULT_CARD_DELAY_MS);}}
+  else relax(gr,pos,1,...graphCentre(),LINK_REST_LENGTH,drag&&drag.moved?drag.v:null);
   const N=nbrs(gr),kind=nextKind(),candN=new Set(),candE=new Set();let fade=null;
   if(rule&&!won){if(kind==='node'){for(const v of gr.V)if(!picks.includes(v)&&ok(v))candN.add(v);}else for(const e of edgesOf(gr))if(ok(e))candE.add(key(...e));}
   for(const [a,b] of edgesOf(gr)){const p=pos.get(a),q=pos.get(b),hot=candE.has(key(a,b)),picked=picks.some(x=>Array.isArray(x)&&key(...x)===key(a,b));
@@ -713,20 +757,21 @@ function render(now){
   if(hint&&!won){const pulse=reduce?.6:.45+.35*Math.sin(now/180);g.strokeStyle=`rgba(240,169,42,${pulse})`;g.lineWidth=10;
     hint.forEach((x,i)=>{if(i<picks.length)return;if(Array.isArray(x)){const a=pos.get(x[0]),b=pos.get(x[1]);if(a&&b){g.beginPath();g.moveTo(a.x,a.y);g.lineTo(b.x,b.y);g.stroke();}}else{const p=pos.get(x);if(p){g.beginPath();g.arc(p.x,p.y,22,0,7);g.stroke();}}});
     if(RULES[rule].picks.length>2)hint.forEach((x,i)=>{if(i<picks.length||Array.isArray(x))return;const p=pos.get(x);if(p){g.font='700 13px Fredoka, system-ui, sans-serif';g.fillStyle='#b77500';g.textAlign='center';g.textBaseline='middle';g.fillText('abcd'[i],p.x-18,p.y-18);}});}
-  for(const v of gr.V){const p=pos.get(v),pop=p.pop?Math.max(0,1-(now-p.pop)/350):0,r=13*(1+(reduce?0:.35*pop));
+  for(const v of gr.V){const p=pos.get(v),pop=p.pop?Math.max(0,1-(now-p.pop)/NEW_NODE_POP_MS):0,r=NODE_RADIUS*(1+(reduce?0:.35*pop));
     g.globalAlpha=fade&&fade.ids.includes(v)?.35:1;node(g,p.x,p.y,r,N.get(v).size,picks.includes(v)?'#e2603a':candN.has(v)?'rgba(226,96,58,.55)':null);
     const k=picks.indexOf(v);if(k>=0&&RULES[rule].picks.length>2){g.font='700 12px Fredoka, system-ui, sans-serif';g.fillStyle='#e2603a';g.textAlign='center';g.textBaseline='middle';g.fillText('abcd'[k],p.x+15,p.y-15);}}
   g.globalAlpha=1;if(fade)fade.draw();
-  parts=parts.filter(q=>now-q.t<1600);for(const q of parts){q.x+=q.vx;q.y+=q.vy;q.vy+=.18;q.vx*=.99;g.globalAlpha=Math.max(0,1-(now-q.t)/1600);g.fillStyle=q.c;g.beginPath();g.arc(q.x,q.y,q.r,0,7);g.fill();}g.globalAlpha=1;
-  if(bad&&now-bad.t<350){g.strokeStyle=`rgba(226,96,58,${1-(now-bad.t)/350})`;g.lineWidth=2;g.beginPath();g.arc(bad.x,bad.y,12,0,7);g.stroke();}
+  parts=parts.filter(q=>now-q.t<CONFETTI_MS);for(const q of parts){q.x+=q.vx;q.y+=q.vy;q.vy+=.18;q.vx*=.99;g.globalAlpha=Math.max(0,1-(now-q.t)/CONFETTI_MS);g.fillStyle=q.c;g.beginPath();g.arc(q.x,q.y,q.r,0,7);g.fill();}g.globalAlpha=1;
+  if(bad&&now-bad.t<BAD_CLICK_FLASH_MS){g.strokeStyle=`rgba(226,96,58,${1-(now-bad.t)/BAD_CLICK_FLASH_MS})`;g.lineWidth=2;g.beginPath();g.arc(bad.x,bad.y,12,0,7);g.stroke();}
   // target card
   const P=PANEL;g.fillStyle='rgba(255,255,255,.94)';g.strokeStyle='#cfd8e1';g.lineWidth=1.5;g.beginPath();g.roundRect(P.x,P.y,P.w,P.h,12);g.fill();g.stroke();
   g.font='600 13px Fredoka, system-ui, sans-serif';g.fillStyle='#6b7a8b';g.textAlign='left';g.textBaseline='middle';g.fillText('TARGET',P.x+12,P.y+15);
-  const TN=nbrs(L.target),tc=[P.x+P.w/2,P.y+100],ts=110;
+  const TN=nbrs(L.target),tc=[P.x+P.w/2,P.y+P.h/2+10],ts=TARGET_CARD.drawingSize;
   for(const [a,b] of edgesOf(L.target)){const [ax,ay]=tlay.get(a),[bx,by]=tlay.get(b);g.strokeStyle='#1d2a3a';g.lineWidth=2.2;g.beginPath();g.moveTo(tc[0]+ax*ts,tc[1]+ay*ts);g.lineTo(tc[0]+bx*ts,tc[1]+by*ts);g.stroke();}
   for(const v of L.target.V){const [x,y]=tlay.get(v);node(g,tc[0]+x*ts,tc[1]+y*ts,8,TN.get(v).size);}
   requestAnimationFrame(render);
 }
+new ResizeObserver(fit).observe($('#mid'));fit();
 setMute(!!save.muted);load(Math.min(save.last||0,LEVELS.length-1));requestAnimationFrame(render);
 </script>
 </body>
